@@ -20,4 +20,4 @@ Changelog
 - Options page popup placeholder.
 
 [Unreleased]: https://github.com/ToranSharma/Xporcle-Extension/compare/master...develop
-[v0.0.1]: https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v1.0.0
+[v0.0.1]: https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v0.0.1
