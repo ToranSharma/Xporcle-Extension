@@ -1,0 +1,198 @@
+// Open page tracking and options page request handling
+const pages = {
+	openedTabs: []
+};
+
+chrome.runtime.onMessage.addListener(
+	(message, sender, sendResponse) =>
+	{
+		if (message.type == "showPageAction")
+		{
+			chrome.pageAction.show(sender.tab.id);
+			if (!pages.openedTabs.includes(sender.tab.id))
+				pages.openedTabs.push(sender.tab.id);
+		}
+		if (message.type == "pageClosed")
+		{
+			const index = pages.openedTabs.indexOf(sender.tab.id);
+			if (index != -1)
+				pages.openedTabs.splice(index, 1);
+		}
+		if (message.type == "tabsRequest")
+		{
+			sendResponse(pages);
+		}
+	}
+);
+
+// Web Socket Handling
+
+let ws = null;
+let roomCode = null;
+let username = null;
+let host = null;
+let messagePort = null;
+let scores = {};
+let urls = {};
+let playing = null;
+
+chrome.runtime.onConnect.addListener(
+	(port) =>
+	{
+		console.log("Page connecting");
+		if (port.name === "messageRelay")
+		{
+			messagePort = port;
+			port.onMessage.addListener(
+				(message) =>
+				{
+					console.log("Page sent a message");
+					console.log(message);
+					if (message.type === "connectionStatus")
+					{
+						console.log("Page is asking about the connection status");
+						// Request to see if we are still connected to a room
+						if (ws !== null)
+						{
+							port.postMessage(
+								{
+									type: "connectionStatus",
+									connected: true,
+									room_code: roomCode,
+									username: username,
+									host: host,
+									scores: scores,
+									urls: urls
+								}
+							);
+							ws.send(JSON.stringify({type: "url_update", url: message["url"]}))
+						}
+						else
+						{
+							port.postMessage({type: "connectionStatus", connected: false});
+						}
+						
+					}
+					else if (message.type === "startConnection")
+					{
+						startConnection(message.initialMessage);
+					}
+					else
+					{
+						// This is a message to forward on to the server
+						ws.send(JSON.stringify(message));
+						
+						if (message.type === "live_scores_update")
+						{
+							playing = message["playing"]
+						}
+					}
+				}
+			);
+
+			// Handle port disconnect
+			port.onDisconnect.addListener(
+				() =>
+				{
+					console.log("page disconnected");
+					messagePort = null;
+
+					if (playing)
+					{
+						playing = false;
+						// Send message to server that the player's playing state is false
+						ws.send(JSON.stringify({type: "page_disconnect"}));
+					}
+				}
+			);
+		}
+	}
+);
+
+
+function startConnection(initialMessage)
+{
+	console.log("Connecting to server");
+
+	username = initialMessage.username;
+
+	if (initialMessage["code"] !== undefined)
+	{
+		roomCode = initialMessage["code"];
+	}
+
+	ws = new WebSocket("wss://toransharma.com/sporcle")
+
+	ws.onerror = (error) => 
+	{
+		throw error;
+	};
+	ws.onclose = (event) =>
+	{
+		console.log("connection closed");
+		reset();
+	};
+	ws.onopen = (event) =>
+	{
+		ws.send(JSON.stringify(initialMessage));
+	};
+
+	ws.onmessage = forwardMessage;
+}
+
+function forwardMessage(event)
+{
+	const message = JSON.parse(event.data);
+	console.log(message);
+
+	messageType = message["type"];
+
+	if (messageType === "new_room_code")
+	{
+		host = true;
+		roomCode = message["room_code"];
+	}
+	else if (messageType === "join_room" && !message["success"])
+	{
+		ws.close();
+		reset();
+	}
+	else if (messageType === "scores_update")
+	{
+		playing = false;
+		Object.assign(scores, message["scores"]);
+	}
+	else if (messageType === "start_quiz")
+	{
+		playing = true;
+	}
+	else if (messageType === "url_update")
+	{
+		urls[message["username"]] = message["url"];
+	}
+	else if (messageType === "removed_from_room")
+	{
+		const removedUser = message["username"];
+		if (removedUser === username)
+		{
+			ws.close();
+			reset();
+		}
+		else
+		{
+			delete urls[removedUser];
+		}
+	}
+
+	if (messagePort !== null)
+	{
+		messagePort.postMessage(message);
+	}
+}
+
+function reset()
+{
+	ws = null;
+	username = null;
+	roomCode = null;
+}
