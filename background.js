@@ -84,7 +84,7 @@ chrome.runtime.onConnect.addListener(
 						
 						if (message.type === "live_scores_update")
 						{
-							playing = message["playing"]
+							playing = !message["finished"]
 						}
 					}
 				}
@@ -96,6 +96,8 @@ chrome.runtime.onConnect.addListener(
 				{
 					console.log("page disconnected");
 					messagePort = null;
+
+					console.log("playing: ", playing);
 
 					if (playing)
 					{
@@ -130,6 +132,8 @@ function startConnection(initialMessage)
 	ws.onclose = (event) =>
 	{
 		console.log("connection closed");
+		if (messagePort != null)
+			messagePort.postMessage({type: "connection_closed"});
 		reset();
 	};
 	ws.onopen = (event) =>
@@ -159,12 +163,15 @@ function forwardMessage(event)
 	}
 	else if (messageType === "scores_update")
 	{
-		playing = false;
-		Object.assign(scores, message["scores"]);
+		scores = message["scores"];
 	}
 	else if (messageType === "start_quiz")
 	{
 		playing = true;
+	}
+	else if (messageType === "quiz_finished")
+	{
+		playing = false;
 	}
 	else if (messageType === "url_update")
 	{
@@ -195,4 +202,8 @@ function reset()
 	ws = null;
 	username = null;
 	roomCode = null;
+	host = null;
+	scores = {};
+	urls = {};
+	playing = null;
 }

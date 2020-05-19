@@ -117,9 +117,10 @@ function addInterfaceBox()
 	const gameHeader = document.querySelector(`.game-header`);
 	const staffPicks = document.querySelector(`#staff-picks-wrapper`);
 
-	if (document.querySelector(`#interfaceContainer`) === null)
+	let interfaceContainer = document.querySelector(`#interfaceContainer`);
+	if (interfaceContainer === null)
 	{
-		const interfaceContainer = document.createElement("div");
+		interfaceContainer = document.createElement("div");
 		interfaceContainer.id = "interfaceContainer";
 		interfaceContainer.style =
 		`
@@ -152,7 +153,7 @@ function addInterfaceBox()
 		interfaceBox.id = "interfaceBox";
 		interfaceBox.style =
 		`
-			width: calc(((100vw - 960px) / 2 - 4px));
+			width: calc(((100vw - 960px) / 2 - 10px));
 			padding: 0.5em;
 			box-sizing: border-box;
 			max-width: 400px;
@@ -206,6 +207,10 @@ function processMessage(message)
 			console.log("room closed");
 			resetInterface();
 			break;
+		case "connection_closed":
+			console.log("server connection closed");
+			resetInterface();
+			break;
 		case "rooms_list":
 			console.log(message["rooms"]);
 			break;
@@ -227,9 +232,12 @@ function processMessage(message)
 		case "start_quiz":
 			// Start the quiz!
 
-			// First remove the quiz start provention
-			toggleQuizStartProvention(false);
-			document.querySelector(`#button-play`).click();
+			if (!quizRunning)
+			{
+				// First remove the quiz start provention
+				toggleQuizStartProvention(false);
+				document.querySelector(`#button-play`).click();
+			}
 			break;
 		case "live_scores_update":
 			updateLiveScores(message["live_scores"]);
@@ -295,6 +303,16 @@ async function createRoom(event, form)
 
 	console.log("connection established.");
 
+	try
+	{
+		await navigator.clipboard.writeText(roomCode);
+	}
+	catch (error)
+	{
+		console.error("Clipboard write failure: ", error);
+	}
+	
+	/* clipboard-write permissions query is only available in chrome
 	await navigator.permissions.query({name: "clipboard-write"}).then(
 		(result) =>
 		{
@@ -305,6 +323,7 @@ async function createRoom(event, form)
 			}
 		}
 	);
+	*/
 
 	interfaceBox.querySelectorAll(`form`).forEach(
 		(form) => form.remove()
@@ -547,9 +566,6 @@ function updateLeaderboardUrls()
 
 	if (onQuizPage)
 	{
-		const playButton = document.querySelector("#button-play");
-		const playButtonContainer = playButton.parentNode.parentNode;
-
 		const allPlayersOnSamePage = ! Object.entries(urls).some(entry => entry[1] !== window.location.href);
 
 		toggleQuizStartProvention(allPlayersOnSamePage === false)
@@ -559,6 +575,12 @@ function updateLeaderboardUrls()
 function toggleQuizStartProvention(prevent)
 {
 	const playPadding = document.querySelector(`#playPadding`);
+	if (document.querySelector(`#button-play`) === null)
+	{
+		// No play button so no need to stop it being clicked, we have probably finished a quiz now.
+		return false;
+	}
+
 	if (prevent)
 	{
 		playPadding.addEventListener("click", stopQuizStart, true);
