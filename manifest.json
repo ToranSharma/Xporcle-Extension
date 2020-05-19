@@ -1,7 +1,7 @@
 {
 	"name"				:	"Xporcle",
 	"description"		:	"Adds real-time multiplayer abilities to Sporcle.com",
-	"version"			:	"0.0.1",
+	"version"			:	"0.0.2",
 	"manifest_version"	:	2,
 	
 	"icons"				: 	{
@@ -32,7 +32,7 @@
 	"content_scripts"	:	[
 		{
 			"matches"	:	["https://www.sporcle.com/*"],
-			"js"		: 	["script.js"]
+			"js"		: 	["xporcle.js"]
 		}
 	],
 
@@ -41,5 +41,13 @@
 	"options_ui"		:	{
 		"page"			:	"options.html",
 		"open_in_tab"	:	false
+	}
+	,
+	"browser_specific_settings":
+	{
+		"gecko":
+		{
+			"id": "Xporcle@toransharma.com"
+		}
 	}
 }
