@@ -194,8 +194,6 @@ function resetInterface()
 
 function processMessage(message)
 {
-	console.log(message);
-
 	messageType = message["type"];
 
 	switch (messageType)
@@ -204,22 +202,16 @@ function processMessage(message)
 			updateLeaderboard(message["scores"]);
 			break;
 		case "room_closed":
-			console.log("room closed");
 			resetInterface();
 			break;
 		case "connection_closed":
-			console.log("server connection closed");
 			resetInterface();
-			break;
-		case "rooms_list":
-			console.log(message["rooms"]);
 			break;
 		case "error":
 			console.error(message["error"]);
 			break;
 		case "removed_from_room":
 			const removedUser = message["username"];
-			console.log(`${removedUser} removed from room`);
 			if (removedUser === username)
 			{
 				resetInterface();
@@ -301,8 +293,6 @@ async function createRoom(event, form)
 		return;
 	}
 
-	console.log("connection established.");
-
 	try
 	{
 		await navigator.clipboard.writeText(roomCode);
@@ -311,7 +301,7 @@ async function createRoom(event, form)
 	{
 		console.error("Clipboard write failure: ", error);
 	}
-	
+
 	/* clipboard-write permissions query is only available in chrome
 	await navigator.permissions.query({name: "clipboard-write"}).then(
 		(result) =>
@@ -344,8 +334,6 @@ async function joinRoom(event, form)
 	const button = form.querySelector(`input[type="submit"]`);
 	button.disabled = true;
 	button.value = "...";
-
-	console.log(`Trying to join room ${roomCode}`);
 
 	const message = {
 		type: "join_room",
@@ -391,7 +379,6 @@ async function joinRoom(event, form)
 		return;
 	}
 
-	console.log("connection established");
 	onRoomConnect();
 }
 
@@ -820,7 +807,6 @@ function quizStarted(mutationList)
 			{
 				// Quiz started
 				quizStartObserver.disconnect();
-				console.log("Quiz started");
 				
 				quizRunning = true;
 				quizStartTime = new Date();
@@ -852,7 +838,6 @@ function quizFinished(mutationList)
 			if (mutation.target.getAttribute("style") !== null)
 			{
 				// Quiz finished
-				console.log("Quiz finished");
 
 				quizFinishObserver.disconnect();
 				scoreObserver.disconnect();

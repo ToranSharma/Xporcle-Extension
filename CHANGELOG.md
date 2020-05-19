@@ -29,6 +29,8 @@ Changelog
 ### Changed
 - Content script renamed from script.js to xporcle.js.
 
+### Removed
+- Debugging console messages from content and background scripts.
 
 [v0.0.1] - 2020-05-18
 ---------------------

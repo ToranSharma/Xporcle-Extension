@@ -39,18 +39,14 @@ let playing = null;
 chrome.runtime.onConnect.addListener(
 	(port) =>
 	{
-		console.log("Page connecting");
 		if (port.name === "messageRelay")
 		{
 			messagePort = port;
 			port.onMessage.addListener(
 				(message) =>
 				{
-					console.log("Page sent a message");
-					console.log(message);
 					if (message.type === "connectionStatus")
 					{
-						console.log("Page is asking about the connection status");
 						// Request to see if we are still connected to a room
 						if (ws !== null)
 						{
@@ -94,10 +90,7 @@ chrome.runtime.onConnect.addListener(
 			port.onDisconnect.addListener(
 				() =>
 				{
-					console.log("page disconnected");
 					messagePort = null;
-
-					console.log("playing: ", playing);
 
 					if (playing)
 					{
@@ -114,8 +107,6 @@ chrome.runtime.onConnect.addListener(
 
 function startConnection(initialMessage)
 {
-	console.log("Connecting to server");
-
 	username = initialMessage.username;
 
 	if (initialMessage["code"] !== undefined)
@@ -131,7 +122,6 @@ function startConnection(initialMessage)
 	};
 	ws.onclose = (event) =>
 	{
-		console.log("connection closed");
 		if (messagePort != null)
 			messagePort.postMessage({type: "connection_closed"});
 		reset();
@@ -147,7 +137,6 @@ function startConnection(initialMessage)
 function forwardMessage(event)
 {
 	const message = JSON.parse(event.data);
-	console.log(message);
 
 	messageType = message["type"];
 
