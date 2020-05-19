@@ -117,9 +117,10 @@ function addInterfaceBox()
 	const gameHeader = document.querySelector(`.game-header`);
 	const staffPicks = document.querySelector(`#staff-picks-wrapper`);
 
-	if (document.querySelector(`#interfaceContainer`) === null)
+	let interfaceContainer = document.querySelector(`#interfaceContainer`);
+	if (interfaceContainer === null)
 	{
-		const interfaceContainer = document.createElement("div");
+		interfaceContainer = document.createElement("div");
 		interfaceContainer.id = "interfaceContainer";
 		interfaceContainer.style =
 		`
@@ -152,7 +153,7 @@ function addInterfaceBox()
 		interfaceBox.id = "interfaceBox";
 		interfaceBox.style =
 		`
-			width: calc(((100vw - 960px) / 2 - 4px));
+			width: calc(((100vw - 960px) / 2 - 10px));
 			padding: 0.5em;
 			box-sizing: border-box;
 			max-width: 400px;
@@ -193,8 +194,6 @@ function resetInterface()
 
 function processMessage(message)
 {
-	console.log(message);
-
 	messageType = message["type"];
 
 	switch (messageType)
@@ -203,18 +202,16 @@ function processMessage(message)
 			updateLeaderboard(message["scores"]);
 			break;
 		case "room_closed":
-			console.log("room closed");
 			resetInterface();
 			break;
-		case "rooms_list":
-			console.log(message["rooms"]);
+		case "connection_closed":
+			resetInterface();
 			break;
 		case "error":
 			console.error(message["error"]);
 			break;
 		case "removed_from_room":
 			const removedUser = message["username"];
-			console.log(`${removedUser} removed from room`);
 			if (removedUser === username)
 			{
 				resetInterface();
@@ -227,9 +224,12 @@ function processMessage(message)
 		case "start_quiz":
 			// Start the quiz!
 
-			// First remove the quiz start provention
-			toggleQuizStartProvention(false);
-			document.querySelector(`#button-play`).click();
+			if (!quizRunning)
+			{
+				// First remove the quiz start provention
+				toggleQuizStartProvention(false);
+				document.querySelector(`#button-play`).click();
+			}
 			break;
 		case "live_scores_update":
 			updateLiveScores(message["live_scores"]);
@@ -293,8 +293,16 @@ async function createRoom(event, form)
 		return;
 	}
 
-	console.log("connection established.");
+	try
+	{
+		await navigator.clipboard.writeText(roomCode);
+	}
+	catch (error)
+	{
+		console.error("Clipboard write failure: ", error);
+	}
 
+	/* clipboard-write permissions query is only available in chrome
 	await navigator.permissions.query({name: "clipboard-write"}).then(
 		(result) =>
 		{
@@ -305,6 +313,7 @@ async function createRoom(event, form)
 			}
 		}
 	);
+	*/
 
 	interfaceBox.querySelectorAll(`form`).forEach(
 		(form) => form.remove()
@@ -325,8 +334,6 @@ async function joinRoom(event, form)
 	const button = form.querySelector(`input[type="submit"]`);
 	button.disabled = true;
 	button.value = "...";
-
-	console.log(`Trying to join room ${roomCode}`);
 
 	const message = {
 		type: "join_room",
@@ -372,7 +379,6 @@ async function joinRoom(event, form)
 		return;
 	}
 
-	console.log("connection established");
 	onRoomConnect();
 }
 
@@ -547,9 +553,6 @@ function updateLeaderboardUrls()
 
 	if (onQuizPage)
 	{
-		const playButton = document.querySelector("#button-play");
-		const playButtonContainer = playButton.parentNode.parentNode;
-
 		const allPlayersOnSamePage = ! Object.entries(urls).some(entry => entry[1] !== window.location.href);
 
 		toggleQuizStartProvention(allPlayersOnSamePage === false)
@@ -559,6 +562,12 @@ function updateLeaderboardUrls()
 function toggleQuizStartProvention(prevent)
 {
 	const playPadding = document.querySelector(`#playPadding`);
+	if (document.querySelector(`#button-play`) === null)
+	{
+		// No play button so no need to stop it being clicked, we have probably finished a quiz now.
+		return false;
+	}
+
 	if (prevent)
 	{
 		playPadding.addEventListener("click", stopQuizStart, true);
@@ -798,7 +807,6 @@ function quizStarted(mutationList)
 			{
 				// Quiz started
 				quizStartObserver.disconnect();
-				console.log("Quiz started");
 				
 				quizRunning = true;
 				quizStartTime = new Date();
@@ -830,7 +838,6 @@ function quizFinished(mutationList)
 			if (mutation.target.getAttribute("style") !== null)
 			{
 				// Quiz finished
-				console.log("Quiz finished");
 
 				quizFinishObserver.disconnect();
 				scoreObserver.disconnect();
