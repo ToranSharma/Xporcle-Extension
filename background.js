@@ -150,6 +150,10 @@ function forwardMessage(event)
 		ws.close();
 		reset();
 	}
+	else if (messageType === "host_promotion")
+	{
+		host = true;
+	}
 	else if (messageType === "scores_update")
 	{
 		scores = message["scores"];

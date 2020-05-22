@@ -66,7 +66,7 @@ function run()
 async function init()
 {
 	// Add UI Container
-	const interfaceBox = addInterfaceBox();
+	addInterfaceBox();
 
 	// Check to see if we are still connected to a room
 	const statusResponse = await new Promise(
@@ -177,6 +177,7 @@ function resetInterface()
 {
 	quizStartObserver.disconnect();
 	scoreObserver.disconnect();
+	quizFinishObserver.disconnect();
 	
 	port.onMessage.removeListener(processMessage);
 
@@ -220,6 +221,15 @@ function processMessage(message)
 			{
 				delete urls[removedUser];
 			}
+			break;
+		case "host_promotion":
+			host = true;
+			if (onQuizPage)
+			{
+				addSendQuizButton();
+			}
+			urls = message["urls"];
+			updateLeaderboardUrls();
 			break;
 		case "start_quiz":
 			// Start the quiz!
@@ -394,6 +404,7 @@ function onRoomConnect(existingScores)
 
 	// Display the room code
 	interfaceBox.appendChild(document.createElement("h4"));
+	interfaceBox.lastChild.id = "roomCodeHeader";
 	interfaceBox.lastChild.textContent = `Room code: ${roomCode}`;
 	interfaceBox.lastChild.style.margin = "0";
 
@@ -401,22 +412,7 @@ function onRoomConnect(existingScores)
 	// add a button to send the quiz to the rest of the room
 	if (host && onQuizPage)
 	{
-		const changeQuizButton = document.createElement("button");
-		changeQuizButton.id = "changeQuizButton";
-		changeQuizButton.textContent = "Send Quiz to Room";
-		changeQuizButton.addEventListener("click",
-			(event) =>
-			{
-				port.postMessage(
-					{
-						type: "change_quiz",
-						url: window.location.href
-					}
-				);
-			}
-		);
-
-		interfaceBox.appendChild(changeQuizButton);
+		addSendQuizButton();
 	}
 
 	// Make the leaderboard
@@ -455,6 +451,27 @@ function onRoomConnect(existingScores)
 	{
 		toggleQuizStartProvention(true);
 	}
+}
+
+function addSendQuizButton()
+{
+	const changeQuizButton = document.createElement("button");
+	changeQuizButton.id = "changeQuizButton";
+	changeQuizButton.textContent = "Send Quiz to Room";
+	changeQuizButton.addEventListener("click",
+		(event) =>
+		{
+			port.postMessage(
+				{
+					type: "change_quiz",
+					url: window.location.href
+				}
+			);
+		}
+	);
+
+	// The button goes just after the room code header
+	interfaceBox.insertBefore(changeQuizButton, interfaceBox.querySelector(`#roomCodeHeader`).nextElementSibling);
 }
 
 function updateLeaderboard(scores)

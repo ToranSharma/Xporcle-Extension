@@ -3,7 +3,8 @@ Changelog
 
 [Unreleased]
 ------------
--
+### Added
+- Handling of being promoted to a host.
 
 [v0.0.2] - 2020-05-19
 ---------------------
