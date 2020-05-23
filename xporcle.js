@@ -6,6 +6,7 @@ let roomCode = null;
 let username = null;
 let host = null;
 let urls = {};
+let hosts = [];
 
 let quizStartTime = null;
 let quizRunning = false;
@@ -91,6 +92,7 @@ async function init()
 		username = statusResponse.username;
 		host = statusResponse.host;
 		urls = statusResponse.urls;
+		hosts = statusResponse.hosts;
 
 		onRoomConnect(statusResponse.scores);
 		if (host)
@@ -185,6 +187,7 @@ function resetInterface()
 	username = null;
 	host = null;
 	urls = {};
+	hosts = [];
 
 	Array.from(interfaceBox.childNodes).forEach(
 		(element) => element.remove()
@@ -220,7 +223,26 @@ function processMessage(message)
 			else
 			{
 				delete urls[removedUser];
+				delete hosts[removedUser];
 			}
+			break;
+		case "hosts_update":
+			hosts = message["hosts"];
+			if (host && !hosts.includes(username))
+			{
+				// Not a host anymore
+				host = false;
+				
+				// Remove host features
+				toggleQuizStartProvention(true);
+				document.querySelector(`#changeQuizButton`).remove();
+
+				urls = {};
+				updateLeaderboardUrls();
+			}
+			// Update the display of the hosts in the leaderboard
+			updateHostsInLeaderboard();
+			updateContextMenuHandling();
 			break;
 		case "host_promotion":
 			host = true;
@@ -229,7 +251,9 @@ function processMessage(message)
 				addSendQuizButton();
 			}
 			urls = message["urls"];
+			updateHostsInLeaderboard();
 			updateLeaderboardUrls();
+			updateContextMenuHandling();
 			break;
 		case "start_quiz":
 			// Start the quiz!
@@ -260,6 +284,16 @@ function processMessage(message)
 
 }
 
+function updateHostsInLeaderboard()
+{
+	document.querySelectorAll(`#leaderboard > li`).forEach(
+		(row) =>
+		{
+			const name = row.firstChild.textContent;
+			row.firstChild.nextElementSibling.textContent = (hosts.includes(name)) ? "host" : "";
+		}
+	);
+}
 async function createRoom(event, form)
 {
 	event.preventDefault();
@@ -330,6 +364,7 @@ async function createRoom(event, form)
 	);
 
 	host = true;
+	hosts = [username];
 
 	onRoomConnect();
 }
@@ -366,6 +401,7 @@ async function joinRoom(event, form)
 					{
 						if (message.success)
 						{
+							hosts = message["hosts"];
 							resolve();
 						}
 						else
@@ -380,7 +416,6 @@ async function joinRoom(event, form)
 				}
 			);
 		});
-
 	}
 	catch (error)
 	{
@@ -502,9 +537,13 @@ function updateLeaderboard(scores)
 	{
 		const row = rows[0].cloneNode(true);
 		row.firstChild.textContent = name;
+		row.firstChild.nextElementSibling.textContent = (hosts.includes(name)) ? "host" : "";
 		row.lastChild.textContent = points;
+
 		leaderboard.appendChild(row);
 	}
+
+	updateContextMenuHandling();
 
 	// Now sort the by score, falling back to alphabetically
 	// First restart scores back to it's unmodified state
@@ -546,6 +585,23 @@ function updateLeaderboard(scores)
 	);
 }
 
+function updateContextMenuHandling()
+{
+	document.querySelectorAll(`#leaderboard > li`).forEach(
+		(row) =>
+		{
+			if (host && !hosts.includes(row.firstChild.textContent))
+			{
+				row.addEventListener("contextmenu", cmEventHandle);
+			}
+			else
+			{
+				row.removeEventListener("contextmenu", cmEventHandle);
+			}
+		}
+	);
+}
+
 function updateLeaderboardUrls()
 {
 	const leaderboard = interfaceBox.querySelector(`#leaderboard`);
@@ -557,7 +613,7 @@ function updateLeaderboardUrls()
 		(row) =>
 		{
 			const name = row.firstChild.textContent;
-			if (name !== username && urls[name] !== window.location.href)
+			if (name !== username && (name in urls) && urls[name] !== window.location.href)
 			{
 				row.style.backgroundColor = "LightGrey";
 			}
@@ -729,9 +785,19 @@ function addLeaderboard(scores)
 		row.style =
 		`
 			display: grid;
-			grid-template-columns: auto max-content;
+			grid-template-columns: fit-content(80%) auto max-content;
 		`;
 		row.appendChild(document.createTextNode(name));
+
+		row.appendChild(document.createElement("span"));
+		row.lastChild.style =
+		`
+			font-size: 80%;
+			font-style: oblique;
+			padding-left: 0.5em;
+			align-self: end;
+		`;
+		row.lastChild.textContent = (hosts.includes(name)) ? "host" : "";
 
 		const pointsContainer = document.createElement("span");
 		pointsContainer.textContent = points;
@@ -740,9 +806,11 @@ function addLeaderboard(scores)
 			text-align: right;
 		`;
 		row.appendChild(pointsContainer);
-
+		
 		leaderboard.appendChild(row);
 	}
+
+	updateContextMenuHandling();
 
 	const leaderboardHeader = document.createElement("h2");
 	leaderboardHeader.id = "leaderboardHeader";
@@ -752,6 +820,12 @@ function addLeaderboard(scores)
 
 	interfaceBox.appendChild(leaderboard);
 	return leaderboard;
+}
+
+function cmEventHandle(event)
+{
+	event.preventDefault();
+	displayContextMenu(event);
 }
 
 function addLiveScores(scores)
@@ -813,6 +887,121 @@ function addLiveScores(scores)
 
 	interfaceBox.insertBefore(liveScores, liveScoresHeader.nextElementSibling);
 	return liveScores;
+}
+
+function displayContextMenu(event)
+{
+	const target = event.currentTarget;
+	let menu = document.querySelector(`#contextMenu`);
+	if (menu !== null)
+	{
+		if (menu.parentNode === target)
+		{
+			return;
+		}
+		else
+		{
+			menu.remove();
+		}
+	}
+
+	const top = event.clientY - target.getBoundingClientRect().top + target.offsetTop;
+	const left = event.clientX - target.getBoundingClientRect().left + target.offsetLeft;
+
+	const targetUsername = target.firstChild.textContent; 
+
+	menu = document.createElement("ul");
+	menu.id = "contextMenu";
+	menu.style =
+	`
+		position: absolute;
+		top: ${top}px;
+		left: ${left}px;
+
+		width: max-content;
+		border: 1px solid #888;
+
+		padding: 0.25em 0;
+
+		box-shadow: 2px 2px 3px rgba(0,0,0, 0.5);
+
+		list-style: none;
+		background-color: white;
+
+		display: grid;
+
+		font-size: 85%;
+	`;
+
+	const mOver = (event) =>
+	{
+		event.target.style.backgroundColor = "#ccc";
+	};
+	const mOut = (event) =>
+	{
+		event.target.style.backgroundColor = "unset";
+	}
+
+	let menuItem = document.createElement("li");
+	menuItem.textContent = `Make ${targetUsername} a host`;
+	menuItem.style =
+	`
+		padding: 0.25em 2em;
+	`;
+	menuItem.addEventListener("mouseover", mOver);
+	menuItem.addEventListener("mouseout", mOut);
+	menuItem.addEventListener("click",
+		(event) =>
+		{
+			port.postMessage({type: "host_promotion", username: targetUsername});
+			removeContextMenu();
+		}
+	);
+	menu.appendChild(menuItem);
+
+	menuItem = menuItem.cloneNode(true);
+	menuItem.textContent = `Swap with ${targetUsername} as a host`;
+	menuItem.addEventListener("mouseover", mOver);
+	menuItem.addEventListener("mouseout", mOut);
+	menuItem.addEventListener("click",
+		(event) =>
+		{
+			port.postMessage({type: "change_host", username: targetUsername});
+			removeContextMenu();
+		}
+	);
+	menu.appendChild(menuItem);
+
+
+	target.appendChild(menu);
+	if (menu.getBoundingClientRect().right > (window.innerWidth - 10))
+	{
+		menu.style.transform += `translateX(${window.innerWidth - menu.getBoundingClientRect().right - 10}px)`;
+	}
+	if (menu.getBoundingClientRect().bottom > (window.innerHeight - 10))
+	{
+		menu.style.transform += "translateY(-100%)";
+	}
+
+
+	menu.addEventListener("mouseup",
+		(event) =>
+		{
+			event.stopPropagation();
+		}
+	);
+	document.addEventListener("mouseup", removeContextMenu);
+}
+
+function removeContextMenu()
+{
+	const menu = document.querySelector(`#contextMenu`);
+	if (menu !== null)
+	{
+		menu.remove();
+	}
+
+	document.removeEventListener("mouseup", removeContextMenu);
 }
 
 function quizStarted(mutationList)

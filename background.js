@@ -34,6 +34,7 @@ let host = null;
 let messagePort = null;
 let scores = {};
 let urls = {};
+let hosts = [];
 let playing = null;
 
 chrome.runtime.onConnect.addListener(
@@ -58,7 +59,8 @@ chrome.runtime.onConnect.addListener(
 									username: username,
 									host: host,
 									scores: scores,
-									urls: urls
+									urls: urls,
+									hosts: hosts
 								}
 							);
 							ws.send(JSON.stringify({type: "url_update", url: message["url"]}))
@@ -143,12 +145,28 @@ function forwardMessage(event)
 	if (messageType === "new_room_code")
 	{
 		host = true;
+		hosts = [username];
 		roomCode = message["room_code"];
 	}
-	else if (messageType === "join_room" && !message["success"])
+	else if (messageType === "join_room")
 	{
-		ws.close();
-		reset();
+		if (message["success"])
+		{
+			hosts = message["hosts"];
+		}
+		else
+		{
+			ws.close();
+			reset();
+		}
+	}
+	else if (messageType === "hosts_update")
+	{
+		hosts = message["hosts"];
+		if (!hosts.includes(username))
+		{
+			host = false;
+		}
 	}
 	else if (messageType === "host_promotion")
 	{
@@ -181,6 +199,7 @@ function forwardMessage(event)
 		else
 		{
 			delete urls[removedUser];
+			delete hosts[removedUser];
 		}
 	}
 
@@ -198,5 +217,6 @@ function reset()
 	host = null;
 	scores = {};
 	urls = {};
+	hosts = [];
 	playing = null;
 }

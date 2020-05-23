@@ -5,6 +5,8 @@ Changelog
 ------------
 ### Added
 - Handling of being promoted to a host.
+- Handling of being removed as a host.
+- Custom context menu for hosts to promote other users to a host.
 
 [v0.0.2] - 2020-05-19
 ---------------------
