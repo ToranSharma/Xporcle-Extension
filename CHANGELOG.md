@@ -4,6 +4,12 @@ Changelog
 [Unreleased]
 ------------
 ### Added
+- Options to the options page and page action popout window.
+  - Option to auto fill a custom default username in the create and join room
+  forms.
+  - Option to blur out the room code, maybe useful if streaming a private room.
+  - Options script to handle the changing and saving of the options.
+  - Options page stylesheet.
 - Button to suggest a quiz to hosts.
 - List of suggestions from other players for hosts to look at.
 - Handling of being promoted to a host.

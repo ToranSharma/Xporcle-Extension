@@ -12,6 +12,8 @@ let suggestions = [];
 let quizStartTime = null;
 let quizRunning = false;
 
+let options = {};
+
 const quizStartObserver = new MutationObserver(quizStarted);
 const scoreObserver = new MutationObserver(() => sendLiveScore());
 const quizFinishObserver = new MutationObserver(quizFinished);
@@ -40,9 +42,14 @@ function run()
 	chrome.runtime.onMessage.addListener(
 		(message) =>
 		{
-			if (message.type == "optionsChanged" && /^\/games\/.*/.test(window.location.pathname))
+			if (message.type == "optionsChanged")
 			{
-				init();
+				retrieveOptions().then(
+					() =>
+					{
+						applyOptionsChanges();
+					}
+				);
 			}
 		}
 	);
@@ -62,7 +69,9 @@ function run()
 	{
 		onQuizPage = false;
 	}
-	init();
+	retrieveOptions().then(
+		init
+	);
 }
 
 async function init()
@@ -103,6 +112,75 @@ async function init()
 		// Not connected so add room forms
 		addCreateRoomForm();
 		addJoinRoomForm();
+	}
+}
+
+function retrieveOptions()
+{
+	return new Promise(function (resolve, reject){
+		chrome.storage.sync.get("options", function (data)
+		{
+			// Set options to default settings
+			options =
+				{
+					useDefaultUsername: false,
+					defaultUsername: "",
+					blurRoomCode: false
+				};
+
+			if (Object.entries(data).length === 0)
+			{
+				// First time using version with options so nothing is set in storage.
+			}
+			else
+			{
+				// We have loaded some options,
+				// let's apply them individually in case new options have been added since last on the options page
+				for (let option in data.options)
+				{
+					if (data.options.hasOwnProperty(option))
+						options[option] = data.options[option];
+				}
+			}
+			// Now let's save the options for next time.
+			chrome.storage.sync.set({"options": options});
+			resolve();
+		});
+	});
+}
+
+function applyOptionsChanges()
+{
+	// Default Username
+	const forms = interfaceBox.querySelectorAll(`form`)
+	if (forms.length !== 0)
+	{
+		document.querySelectorAll(`#createRoomUsernameInput, #joinRoomUsernameInput`).forEach(
+			(input) =>
+			{
+				if (options.useDefaultUsername && options.defaultUsername !== "")
+				{
+					input.value = options.defaultUsername;
+					if (input.parentNode.id === "createRoomForm")
+					{
+						input.parentNode.querySelector(`[type="submit"]`).disabled = false;
+					}
+				}
+				else
+				{
+					input.value = "Enter Username";
+					input.parentNode.querySelector(`[type="submit"]`).disabled = true;
+				}
+			}
+		);
+	}
+
+	// Blur Room Code
+	const roomCodeHeader = document.querySelector(`#roomCodeHeader`);
+	if (roomCodeHeader !== null)
+	{
+		const codeSpan = roomCodeHeader.lastChild;
+		codeSpan.style.filter = (options.blurRoomCode) ? "blur(0.4em)" : "unset";
 	}
 }
 
@@ -446,10 +524,17 @@ function onRoomConnect(existingScores)
 	);
 
 	// Display the room code
-	interfaceBox.appendChild(document.createElement("h4"));
-	interfaceBox.lastChild.id = "roomCodeHeader";
-	interfaceBox.lastChild.textContent = `Room code: ${roomCode}`;
-	interfaceBox.lastChild.style.margin = "0";
+	const roomCodeHeader = document.createElement("h4");
+	roomCodeHeader.id = "roomCodeHeader";
+	roomCodeHeader.style.margin = "0";
+	roomCodeHeader.textContent = "Room code: ";
+	roomCodeHeader.appendChild(document.createElement("span"));
+	roomCodeHeader.lastChild.textContent = roomCode;
+	if (options.blurRoomCode)
+	{
+		roomCodeHeader.lastChild.style.filter = "blur(0.4em)";
+	}
+	interfaceBox.appendChild(roomCodeHeader);
 
 	// If the user is a host and is on a quiz,
 	// add a button to send the quiz to the rest of the room
@@ -1261,6 +1346,10 @@ function addCreateRoomForm()
 	usernameInput.id = "createRoomUsernameInput";
 	usernameInput.setAttribute("type", "text");
 	usernameInput.value = "Enter Username";
+	if (options.useDefaultUsername && options.defaultUsername !== "")
+	{
+		usernameInput.value = options.defaultUsername;
+	}
 
 	form.appendChild(usernameInput);
 
@@ -1268,7 +1357,10 @@ function addCreateRoomForm()
 	button.id = "createRoomSubmit";
 	button.setAttribute("type", "submit");
 	button.value = "Create Room";
-	button.disabled = true;
+	if (usernameInput.value === "Enter Username")
+	{
+		button.disabled = true;
+	}
 
 
 	usernameInput.addEventListener("keyup", function ()
@@ -1317,6 +1409,10 @@ function addJoinRoomForm()
 	usernameInput.id = "joinRoomUsernameInput";
 	usernameInput.setAttribute("type", "text");
 	usernameInput.value = "Enter Username";
+	if (options.useDefaultUsername && options.defaultUsername !== "")
+	{
+		usernameInput.value = options.defaultUsername;
+	}
 
 	form.appendChild(usernameInput);
 

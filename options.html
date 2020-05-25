@@ -3,9 +3,30 @@
 <head>
 	<meta charset="utf-8" />
 	<title>Xporcle Options</title>
+	<link href="stylesheets/options.css" rel="stylesheet" />
 </head>
 <body>
 	<h1>Xporcle <span id="version">v0.0.2</span></h1>
 	<h2>Enable or Disable Features Here</h2>
+	<ul>
+		<li>
+			<input class="option" id="useDefaultUsername" type="checkbox" />
+			<label for="useDefaultUsername">Automatically Enter a Default Username</label>
+			<ul>
+				<li class="containsTextInput labelFirst">
+					<label for="defaultUsername">Default Username:</label>
+					<input class="dummy" type="text" disabled="true" />
+					<input class="option" type="text" id="defaultUsername" />
+				</li>
+			</ul>
+		</li>
+		<li>
+			<input class="option" id="blurRoomCode" type="checkbox" />
+			<label for="blurRoomCode">Blur Room Code</label>
+		</li>
+		<button id="enableAll">Enable all</button>
+		<button id="disableAll">Disable all</button>
+		<script type="text/javascript" charset="UTF-8" src="options.js"></script>
+	</ul>
 </body>
 </html>
