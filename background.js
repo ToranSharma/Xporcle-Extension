@@ -35,6 +35,7 @@ let messagePort = null;
 let scores = {};
 let urls = {};
 let hosts = [];
+let suggestions = [];
 let playing = null;
 
 chrome.runtime.onConnect.addListener(
@@ -60,7 +61,8 @@ chrome.runtime.onConnect.addListener(
 									host: host,
 									scores: scores,
 									urls: urls,
-									hosts: hosts
+									hosts: hosts,
+									suggestions: suggestions
 								}
 							);
 							ws.send(JSON.stringify({type: "url_update", url: message["url"]}))
@@ -74,6 +76,20 @@ chrome.runtime.onConnect.addListener(
 					else if (message.type === "startConnection")
 					{
 						startConnection(message.initialMessage);
+					}
+					else if (message.type === "removeSuggestion")
+					{
+						suggestions = suggestions.filter(
+							(suggestion) =>
+							{
+								return !(
+									suggestion["username"] === message["username"]
+									&& suggestion["url"] === message["url"]
+									&& suggestion["short_title"] === message["short_title"]
+									&& suggestion["long_title"] === message["long_title"]
+								);
+							}
+						);
 					}
 					else
 					{
@@ -166,6 +182,8 @@ function forwardMessage(event)
 		if (!hosts.includes(username))
 		{
 			host = false;
+			urls = {};
+			suggestions = [];
 		}
 	}
 	else if (messageType === "host_promotion")
@@ -183,6 +201,31 @@ function forwardMessage(event)
 	else if (messageType === "quiz_finished")
 	{
 		playing = false;
+	}
+	else if (messageType === "suggest_quiz")
+	{
+
+		const duplicate = suggestions.some(
+			(suggestion) =>
+			{
+				return (
+					suggestion["username"] === message["username"]
+					&& suggestion["url"] === message["url"]
+					&& suggestion["short_title"] === message["short_title"]
+					&& suggestion["long_title"] === message["long_title"]
+				);
+			}
+		);
+		if (!duplicate)
+		{
+			const suggestion = Object.assign({}, message);
+			delete suggestion["type"];
+			suggestions.push(suggestion);
+		}
+		else
+		{
+			return;
+		}
 	}
 	else if (messageType === "url_update")
 	{

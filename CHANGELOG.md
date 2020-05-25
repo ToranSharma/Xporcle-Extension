@@ -4,6 +4,8 @@ Changelog
 [Unreleased]
 ------------
 ### Added
+- Button to suggest a quiz to hosts.
+- List of suggestions from other players for hosts to look at.
 - Handling of being promoted to a host.
 - Handling of being removed as a host.
 - Custom context menu for hosts to promote other users to a host.

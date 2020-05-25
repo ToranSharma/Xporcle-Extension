@@ -7,6 +7,7 @@ let username = null;
 let host = null;
 let urls = {};
 let hosts = [];
+let suggestions = [];
 
 let quizStartTime = null;
 let quizRunning = false;
@@ -88,21 +89,14 @@ async function init()
 	if (statusResponse.connected)
 	{
 		// We are already connected to a room
-		roomCode = statusResponse.room_code;
-		username = statusResponse.username;
-		host = statusResponse.host;
-		urls = statusResponse.urls;
-		hosts = statusResponse.hosts;
+		roomCode = statusResponse["room_code"];
+		username = statusResponse["username"];
+		host = statusResponse["host"];
+		urls = statusResponse["urls"];
+		hosts = statusResponse["hosts"];
+		suggestions = statusResponse["suggestions"];
 
-		onRoomConnect(statusResponse.scores);
-		if (host)
-		{
-			updateLeaderboardUrls();
-		}
-		if (!host && onQuizPage)
-		{
-			toggleQuizStartProvention(true);
-		}
+		onRoomConnect(statusResponse["scores"]);
 	}
 	else
 	{
@@ -188,6 +182,7 @@ function resetInterface()
 	host = null;
 	urls = {};
 	hosts = [];
+	suggestions = [];
 
 	Array.from(interfaceBox.childNodes).forEach(
 		(element) => element.remove()
@@ -239,6 +234,11 @@ function processMessage(message)
 
 				urls = {};
 				updateLeaderboardUrls();
+
+				suggestions = [];
+				document.querySelectorAll(`#suggestionsHeader, #suggestionsList`).forEach(element => element.remove());
+
+				addSuggestionQuizButton();
 			}
 			// Update the display of the hosts in the leaderboard
 			updateHostsInLeaderboard();
@@ -248,7 +248,8 @@ function processMessage(message)
 			host = true;
 			if (onQuizPage)
 			{
-				addSendQuizButton();
+				document.querySelector(`#suggestQuizButton`).remove();
+				addChangeQuizButton();
 			}
 			urls = message["urls"];
 			updateHostsInLeaderboard();
@@ -275,6 +276,13 @@ function processMessage(message)
 			{
 				window.location = newUrl;
 			}
+			break;
+		case "suggest_quiz":
+			// Won't be a duplicate as these are caught in the background script.
+			delete message["type"];
+			
+			suggestions.push(message);
+			updateSuggestionList(message);
 			break;
 		case "url_update":
 			urls[message["username"]] = message["url"]
@@ -447,7 +455,11 @@ function onRoomConnect(existingScores)
 	// add a button to send the quiz to the rest of the room
 	if (host && onQuizPage)
 	{
-		addSendQuizButton();
+		addChangeQuizButton();
+	}
+	else if (!host && onQuizPage)
+	{
+		addSuggestionQuizButton();
 	}
 
 	// Make the leaderboard
@@ -486,9 +498,15 @@ function onRoomConnect(existingScores)
 	{
 		toggleQuizStartProvention(true);
 	}
+
+	if (host)
+	{
+		updateLeaderboardUrls();
+		updateSuggestionList();
+	}
 }
 
-function addSendQuizButton()
+function addChangeQuizButton()
 {
 	const changeQuizButton = document.createElement("button");
 	changeQuizButton.id = "changeQuizButton";
@@ -507,6 +525,31 @@ function addSendQuizButton()
 
 	// The button goes just after the room code header
 	interfaceBox.insertBefore(changeQuizButton, interfaceBox.querySelector(`#roomCodeHeader`).nextElementSibling);
+}
+
+function addSuggestionQuizButton()
+{
+	const shortTitle = document.querySelector(`title`).textContent;
+	const longTitle = document.querySelector("#gameMeta>h2").textContent;
+
+	const suggestQuizButton = document.createElement("button");
+	suggestQuizButton.id = "suggestQuizButton";
+	suggestQuizButton.textContent = "Suggest Quiz to Hosts";
+	suggestQuizButton.addEventListener("click",
+		(event) =>
+		{
+			port.postMessage(
+				{
+					type: "suggest_quiz",
+					url: window.location.href,
+					short_title: shortTitle,
+					long_title: longTitle
+				}
+			);
+		}
+	);
+	// The button goes just after the room code header, where the changeQuizButton would be for hosts
+	interfaceBox.insertBefore(suggestQuizButton, interfaceBox.querySelector(`#roomCodeHeader`).nextElementSibling);
 }
 
 function updateLeaderboard(scores)
@@ -606,7 +649,9 @@ function updateLeaderboardUrls()
 {
 	const leaderboard = interfaceBox.querySelector(`#leaderboard`);
 	if (leaderboard === null)
+	{
 		return;
+	}
 
 	const rows = leaderboard.querySelectorAll(`li`);
 	rows.forEach(
@@ -629,6 +674,30 @@ function updateLeaderboardUrls()
 		const allPlayersOnSamePage = ! Object.entries(urls).some(entry => entry[1] !== window.location.href);
 
 		toggleQuizStartProvention(allPlayersOnSamePage === false)
+	}
+}
+
+function updateSuggestionList(newSuggestion)
+{
+	let suggestionsList = document.querySelector(`#suggestionsList`);
+	if (suggestionsList === null)
+	{
+		addSuggestionsList();
+	}
+	else
+	{
+		const row = suggestionsList.lastChild.cloneNode(true);
+		row.title = newSuggestion["long_title"];
+		row.textContent = `${newSuggestion["username"]}: ${newSuggestion["short_title"]}`;
+		row.addEventListener("click",
+			(event) =>
+			{
+				suggetions = suggestions.filter(item => item !== newSuggestion);
+				port.postMessage({type:"removeSuggestion", ...newSuggestion});
+				window.location = newSuggestion["url"];
+			}
+		);
+		suggestionsList.appendChild(row);
 	}
 }
 
@@ -887,6 +956,62 @@ function addLiveScores(scores)
 
 	interfaceBox.insertBefore(liveScores, liveScoresHeader.nextElementSibling);
 	return liveScores;
+}
+
+function addSuggestionsList()
+{
+	if (suggestions.length === 0)
+	{
+		return;
+	}
+
+	interfaceBox.appendChild(document.createElement("h3"));
+	interfaceBox.lastChild.id = "suggestionsHeader";
+	interfaceBox.lastChild.style =
+	`
+		margin: 0;
+	`;
+	interfaceBox.lastChild.textContent = "Suggestions";
+
+	const suggestionsList = document.createElement("ol");
+	suggestionsList.id = "suggestionsList";
+	suggestionsList.style =
+	`
+		width: 100%;
+		padding: 0;
+		margin: auto;
+		display: grid;
+		grid-row-gap: 0.75em;
+	`;
+
+	suggestions.forEach(
+		(suggestion) =>
+		{
+			const row = document.createElement("li");
+			row.style =
+			`
+				display: block;
+				grid-template-columns: max-content auto;
+				cursor: pointer;
+				text-decoration: underline;
+			`;
+			row.title = suggestion["long_title"];
+			row.textContent = `${suggestion["username"]}: ${suggestion["short_title"]}`;
+			row.addEventListener("click",
+				(event) =>
+				{
+					suggestions = suggestions.filter(item => item !== suggestion);
+					port.postMessage({type:"removeSuggestion", ...suggestion});
+					window.location = suggestion["url"];
+				}
+			);
+			suggestionsList.appendChild(row);
+		}
+	);
+
+	interfaceBox.appendChild(suggestionsList);
+
+	return suggestionsList;
 }
 
 function displayContextMenu(event)
