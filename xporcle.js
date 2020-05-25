@@ -6,9 +6,13 @@ let roomCode = null;
 let username = null;
 let host = null;
 let urls = {};
+let hosts = [];
+let suggestions = [];
 
 let quizStartTime = null;
 let quizRunning = false;
+
+let options = {};
 
 const quizStartObserver = new MutationObserver(quizStarted);
 const scoreObserver = new MutationObserver(() => sendLiveScore());
@@ -38,9 +42,14 @@ function run()
 	chrome.runtime.onMessage.addListener(
 		(message) =>
 		{
-			if (message.type == "optionsChanged" && /^\/games\/.*/.test(window.location.pathname))
+			if (message.type == "optionsChanged")
 			{
-				init();
+				retrieveOptions().then(
+					() =>
+					{
+						applyOptionsChanges();
+					}
+				);
 			}
 		}
 	);
@@ -60,13 +69,15 @@ function run()
 	{
 		onQuizPage = false;
 	}
-	init();
+	retrieveOptions().then(
+		init
+	);
 }
 
 async function init()
 {
 	// Add UI Container
-	const interfaceBox = addInterfaceBox();
+	addInterfaceBox();
 
 	// Check to see if we are still connected to a room
 	const statusResponse = await new Promise(
@@ -87,26 +98,89 @@ async function init()
 	if (statusResponse.connected)
 	{
 		// We are already connected to a room
-		roomCode = statusResponse.room_code;
-		username = statusResponse.username;
-		host = statusResponse.host;
-		urls = statusResponse.urls;
+		roomCode = statusResponse["room_code"];
+		username = statusResponse["username"];
+		host = statusResponse["host"];
+		urls = statusResponse["urls"];
+		hosts = statusResponse["hosts"];
+		suggestions = statusResponse["suggestions"];
 
-		onRoomConnect(statusResponse.scores);
-		if (host)
-		{
-			updateLeaderboardUrls();
-		}
-		if (!host && onQuizPage)
-		{
-			toggleQuizStartProvention(true);
-		}
+		onRoomConnect(statusResponse["scores"]);
 	}
 	else
 	{
 		// Not connected so add room forms
 		addCreateRoomForm();
 		addJoinRoomForm();
+	}
+}
+
+function retrieveOptions()
+{
+	return new Promise(function (resolve, reject){
+		chrome.storage.sync.get("options", function (data)
+		{
+			// Set options to default settings
+			options =
+				{
+					useDefaultUsername: false,
+					defaultUsername: "",
+					blurRoomCode: false
+				};
+
+			if (Object.entries(data).length === 0)
+			{
+				// First time using version with options so nothing is set in storage.
+			}
+			else
+			{
+				// We have loaded some options,
+				// let's apply them individually in case new options have been added since last on the options page
+				for (let option in data.options)
+				{
+					if (data.options.hasOwnProperty(option))
+						options[option] = data.options[option];
+				}
+			}
+			// Now let's save the options for next time.
+			chrome.storage.sync.set({"options": options});
+			resolve();
+		});
+	});
+}
+
+function applyOptionsChanges()
+{
+	// Default Username
+	const forms = interfaceBox.querySelectorAll(`form`)
+	if (forms.length !== 0)
+	{
+		document.querySelectorAll(`#createRoomUsernameInput, #joinRoomUsernameInput`).forEach(
+			(input) =>
+			{
+				if (options.useDefaultUsername && options.defaultUsername !== "")
+				{
+					input.value = options.defaultUsername;
+					if (input.parentNode.id === "createRoomForm")
+					{
+						input.parentNode.querySelector(`[type="submit"]`).disabled = false;
+					}
+				}
+				else
+				{
+					input.value = "Enter Username";
+					input.parentNode.querySelector(`[type="submit"]`).disabled = true;
+				}
+			}
+		);
+	}
+
+	// Blur Room Code
+	const roomCodeHeader = document.querySelector(`#roomCodeHeader`);
+	if (roomCodeHeader !== null)
+	{
+		const codeSpan = roomCodeHeader.lastChild;
+		codeSpan.style.filter = (options.blurRoomCode) ? "blur(0.4em)" : "unset";
 	}
 }
 
@@ -177,6 +251,7 @@ function resetInterface()
 {
 	quizStartObserver.disconnect();
 	scoreObserver.disconnect();
+	quizFinishObserver.disconnect();
 	
 	port.onMessage.removeListener(processMessage);
 
@@ -184,6 +259,8 @@ function resetInterface()
 	username = null;
 	host = null;
 	urls = {};
+	hosts = [];
+	suggestions = [];
 
 	Array.from(interfaceBox.childNodes).forEach(
 		(element) => element.remove()
@@ -219,7 +296,43 @@ function processMessage(message)
 			else
 			{
 				delete urls[removedUser];
+				delete hosts[removedUser];
 			}
+			break;
+		case "hosts_update":
+			hosts = message["hosts"];
+			if (host && !hosts.includes(username))
+			{
+				// Not a host anymore
+				host = false;
+				
+				// Remove host features
+				toggleQuizStartProvention(true);
+				document.querySelector(`#changeQuizButton`).remove();
+
+				urls = {};
+				updateLeaderboardUrls();
+
+				suggestions = [];
+				document.querySelectorAll(`#suggestionsHeader, #suggestionsList`).forEach(element => element.remove());
+
+				addSuggestionQuizButton();
+			}
+			// Update the display of the hosts in the leaderboard
+			updateHostsInLeaderboard();
+			updateContextMenuHandling();
+			break;
+		case "host_promotion":
+			host = true;
+			if (onQuizPage)
+			{
+				document.querySelector(`#suggestQuizButton`).remove();
+				addChangeQuizButton();
+			}
+			urls = message["urls"];
+			updateHostsInLeaderboard();
+			updateLeaderboardUrls();
+			updateContextMenuHandling();
 			break;
 		case "start_quiz":
 			// Start the quiz!
@@ -242,6 +355,13 @@ function processMessage(message)
 				window.location = newUrl;
 			}
 			break;
+		case "suggest_quiz":
+			// Won't be a duplicate as these are caught in the background script.
+			delete message["type"];
+			
+			suggestions.push(message);
+			updateSuggestionList(message);
+			break;
 		case "url_update":
 			urls[message["username"]] = message["url"]
 			updateLeaderboardUrls()
@@ -250,6 +370,16 @@ function processMessage(message)
 
 }
 
+function updateHostsInLeaderboard()
+{
+	document.querySelectorAll(`#leaderboard > li`).forEach(
+		(row) =>
+		{
+			const name = row.firstChild.textContent;
+			row.firstChild.nextElementSibling.textContent = (hosts.includes(name)) ? "host" : "";
+		}
+	);
+}
 async function createRoom(event, form)
 {
 	event.preventDefault();
@@ -320,6 +450,7 @@ async function createRoom(event, form)
 	);
 
 	host = true;
+	hosts = [username];
 
 	onRoomConnect();
 }
@@ -356,6 +487,7 @@ async function joinRoom(event, form)
 					{
 						if (message.success)
 						{
+							hosts = message["hosts"];
 							resolve();
 						}
 						else
@@ -370,7 +502,6 @@ async function joinRoom(event, form)
 				}
 			);
 		});
-
 	}
 	catch (error)
 	{
@@ -393,30 +524,27 @@ function onRoomConnect(existingScores)
 	);
 
 	// Display the room code
-	interfaceBox.appendChild(document.createElement("h4"));
-	interfaceBox.lastChild.textContent = `Room code: ${roomCode}`;
-	interfaceBox.lastChild.style.margin = "0";
+	const roomCodeHeader = document.createElement("h4");
+	roomCodeHeader.id = "roomCodeHeader";
+	roomCodeHeader.style.margin = "0";
+	roomCodeHeader.textContent = "Room code: ";
+	roomCodeHeader.appendChild(document.createElement("span"));
+	roomCodeHeader.lastChild.textContent = roomCode;
+	if (options.blurRoomCode)
+	{
+		roomCodeHeader.lastChild.style.filter = "blur(0.4em)";
+	}
+	interfaceBox.appendChild(roomCodeHeader);
 
 	// If the user is a host and is on a quiz,
 	// add a button to send the quiz to the rest of the room
 	if (host && onQuizPage)
 	{
-		const changeQuizButton = document.createElement("button");
-		changeQuizButton.id = "changeQuizButton";
-		changeQuizButton.textContent = "Send Quiz to Room";
-		changeQuizButton.addEventListener("click",
-			(event) =>
-			{
-				port.postMessage(
-					{
-						type: "change_quiz",
-						url: window.location.href
-					}
-				);
-			}
-		);
-
-		interfaceBox.appendChild(changeQuizButton);
+		addChangeQuizButton();
+	}
+	else if (!host && onQuizPage)
+	{
+		addSuggestionQuizButton();
 	}
 
 	// Make the leaderboard
@@ -428,7 +556,7 @@ function onRoomConnect(existingScores)
 	else
 	{
 		scores = {};
-		scores[username] = 0;
+		scores[username] = {score: 0, wins: 0};
 	}
 
 	updateLeaderboard(scores);
@@ -455,6 +583,58 @@ function onRoomConnect(existingScores)
 	{
 		toggleQuizStartProvention(true);
 	}
+
+	if (host)
+	{
+		updateLeaderboardUrls();
+		updateSuggestionList();
+	}
+}
+
+function addChangeQuizButton()
+{
+	const changeQuizButton = document.createElement("button");
+	changeQuizButton.id = "changeQuizButton";
+	changeQuizButton.textContent = "Send Quiz to Room";
+	changeQuizButton.addEventListener("click",
+		(event) =>
+		{
+			port.postMessage(
+				{
+					type: "change_quiz",
+					url: window.location.href
+				}
+			);
+		}
+	);
+
+	// The button goes just after the room code header
+	interfaceBox.insertBefore(changeQuizButton, interfaceBox.querySelector(`#roomCodeHeader`).nextElementSibling);
+}
+
+function addSuggestionQuizButton()
+{
+	const shortTitle = document.querySelector(`title`).textContent;
+	const longTitle = document.querySelector("#gameMeta>h2").textContent;
+
+	const suggestQuizButton = document.createElement("button");
+	suggestQuizButton.id = "suggestQuizButton";
+	suggestQuizButton.textContent = "Suggest Quiz to Hosts";
+	suggestQuizButton.addEventListener("click",
+		(event) =>
+		{
+			port.postMessage(
+				{
+					type: "suggest_quiz",
+					url: window.location.href,
+					short_title: shortTitle,
+					long_title: longTitle
+				}
+			);
+		}
+	);
+	// The button goes just after the room code header, where the changeQuizButton would be for hosts
+	interfaceBox.insertBefore(suggestQuizButton, interfaceBox.querySelector(`#roomCodeHeader`).nextElementSibling);
 }
 
 function updateLeaderboard(scores)
@@ -468,10 +648,12 @@ function updateLeaderboard(scores)
 	rows.forEach(
 		(row) => {
 			const nameElem = row.firstChild;
+			const winsElem = row.lastChild.previousElementSibling;
 			const pointsElem = row.lastChild;
 			if (scores[nameElem.textContent] !== undefined)
 			{
-				pointsElem.textContent = scores[nameElem.textContent];
+				winsElem.textContent = scores[nameElem.textContent]["wins"];
+				pointsElem.textContent = scores[nameElem.textContent]["score"];
 				delete scores[nameElem.textContent];
 			}
 			else
@@ -481,13 +663,18 @@ function updateLeaderboard(scores)
 		}
 	);
 
-	for (const [name, points] of Object.entries(scores))
+	for (const [name, {score, wins}] of Object.entries(scores))
 	{
 		const row = rows[0].cloneNode(true);
 		row.firstChild.textContent = name;
-		row.lastChild.textContent = points;
+		row.firstChild.nextElementSibling.textContent = (hosts.includes(name)) ? "host" : "";
+		row.lastChild.previousElementSibling.textContent = wins;
+		row.lastChild.textContent = score;
+
 		leaderboard.appendChild(row);
 	}
+
+	updateContextMenuHandling();
 
 	// Now sort the by score, falling back to alphabetically
 	// First restart scores back to it's unmodified state
@@ -502,13 +689,27 @@ function updateLeaderboard(scores)
 		else
 			return 1;
 	};
+	const byWins = (a, b) =>
+	{
+		const aName = a.firstChild.textContent;
+		const bName = b.firstChild.textContent;
+		const aWins = scores[aName]["wins"];
+		const bWins = scores[bName]["wins"];
+
+		if (aWins < bWins)
+			return 1;
+		else if (aWins > bWins)
+			return -1;
+		else
+			return 0;
+	}
 
 	const byScore = (a, b) =>
 	{
 		const aName = a.firstChild.textContent;
 		const bName = b.firstChild.textContent;
-		const aScore = scores[aName];
-		const bScore = scores[bName];
+		const aScore = scores[aName]["score"];
+		const bScore = scores[bName]["score"];
 
 		if (aScore < bScore)
 			return 1;
@@ -529,18 +730,37 @@ function updateLeaderboard(scores)
 	);
 }
 
+function updateContextMenuHandling()
+{
+	document.querySelectorAll(`#leaderboard > li`).forEach(
+		(row) =>
+		{
+			if (host && !hosts.includes(row.firstChild.textContent))
+			{
+				row.addEventListener("contextmenu", cmEventHandle);
+			}
+			else
+			{
+				row.removeEventListener("contextmenu", cmEventHandle);
+			}
+		}
+	);
+}
+
 function updateLeaderboardUrls()
 {
 	const leaderboard = interfaceBox.querySelector(`#leaderboard`);
 	if (leaderboard === null)
+	{
 		return;
+	}
 
 	const rows = leaderboard.querySelectorAll(`li`);
 	rows.forEach(
 		(row) =>
 		{
 			const name = row.firstChild.textContent;
-			if (name !== username && urls[name] !== window.location.href)
+			if (name !== username && (name in urls) && urls[name] !== window.location.href)
 			{
 				row.style.backgroundColor = "LightGrey";
 			}
@@ -556,6 +776,30 @@ function updateLeaderboardUrls()
 		const allPlayersOnSamePage = ! Object.entries(urls).some(entry => entry[1] !== window.location.href);
 
 		toggleQuizStartProvention(allPlayersOnSamePage === false)
+	}
+}
+
+function updateSuggestionList(newSuggestion)
+{
+	let suggestionsList = document.querySelector(`#suggestionsList`);
+	if (suggestionsList === null)
+	{
+		addSuggestionsList();
+	}
+	else
+	{
+		const row = suggestionsList.lastChild.cloneNode(true);
+		row.title = newSuggestion["long_title"];
+		row.textContent = `${newSuggestion["username"]}: ${newSuggestion["short_title"]}`;
+		row.addEventListener("click",
+			(event) =>
+			{
+				suggetions = suggestions.filter(item => item !== newSuggestion);
+				port.postMessage({type:"removeSuggestion", ...newSuggestion});
+				window.location = newSuggestion["url"];
+			}
+		);
+		suggestionsList.appendChild(row);
 	}
 }
 
@@ -686,7 +930,6 @@ function addLeaderboard(scores)
 	leaderboard.style =
 	`
 		width: 100%;
-		max-width: 10em;
 		padding: 0;
 		margin: auto;
 	`;
@@ -696,36 +939,66 @@ function addLeaderboard(scores)
 	`
 		margin: 0 0 1em 0;
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: 3fr 1fr 1fr;
 	`;
 	columnHeaders.appendChild(document.createElement("span"));
 	columnHeaders.lastChild.textContent = "Name";
+	columnHeaders.appendChild(document.createElement("span"));
+	columnHeaders.lastChild.textContent = "Wins";
+	columnHeaders.lastChild.style = `text-align: right;`;
 	columnHeaders.appendChild(document.createElement("span"));
 	columnHeaders.lastChild.textContent = "Points";
 	columnHeaders.lastChild.style = `text-align: right;`;
 
 	leaderboard.appendChild(columnHeaders);
 
-	for (const [name, points] of Object.entries(scores))
+	for (const [name, {score, wins}] of Object.entries(scores))
 	{
 		const row = document.createElement("li");
 		row.style =
 		`
 			display: grid;
-			grid-template-columns: auto max-content;
+			grid-template-columns: fit-content(calc(60% - 3em)) 1fr 20% 20%;
 		`;
-		row.appendChild(document.createTextNode(name));
 
-		const pointsContainer = document.createElement("span");
-		pointsContainer.textContent = points;
-		pointsContainer.style =
+		// Username
+		const usernameContainer = document.createElement("span");
+		usernameContainer.textContent = name;
+		usernameContainer.style =
+		`
+			overflow-wrap: anywhere;
+		`;
+		row.appendChild(usernameContainer);
+
+		// Host
+		row.appendChild(document.createElement("span"));
+		row.lastChild.textContent = (hosts.includes(name)) ? "host" : "";
+		row.lastChild.style =
+		`
+			font-size: 80%;
+			font-style: oblique;
+			padding-left: 0.5em;
+			align-self: end;
+		`;
+
+		// Wins
+		const winsContainer = document.createElement("span");
+		winsContainer.textContent = wins;
+		winsContainer.style =
 		`
 			text-align: right;
 		`;
-		row.appendChild(pointsContainer);
+		row.appendChild(winsContainer);
 
+		// Points
+		const pointsContainer = row.lastChild.cloneNode(true);
+		pointsContainer.textContent = score;
+		row.appendChild(pointsContainer);
+		
 		leaderboard.appendChild(row);
 	}
+
+	updateContextMenuHandling();
 
 	const leaderboardHeader = document.createElement("h2");
 	leaderboardHeader.id = "leaderboardHeader";
@@ -735,6 +1008,12 @@ function addLeaderboard(scores)
 
 	interfaceBox.appendChild(leaderboard);
 	return leaderboard;
+}
+
+function cmEventHandle(event)
+{
+	event.preventDefault();
+	displayContextMenu(event);
 }
 
 function addLiveScores(scores)
@@ -796,6 +1075,177 @@ function addLiveScores(scores)
 
 	interfaceBox.insertBefore(liveScores, liveScoresHeader.nextElementSibling);
 	return liveScores;
+}
+
+function addSuggestionsList()
+{
+	if (suggestions.length === 0)
+	{
+		return;
+	}
+
+	interfaceBox.appendChild(document.createElement("h3"));
+	interfaceBox.lastChild.id = "suggestionsHeader";
+	interfaceBox.lastChild.style =
+	`
+		margin: 0;
+	`;
+	interfaceBox.lastChild.textContent = "Suggestions";
+
+	const suggestionsList = document.createElement("ol");
+	suggestionsList.id = "suggestionsList";
+	suggestionsList.style =
+	`
+		width: 100%;
+		padding: 0;
+		margin: auto;
+		display: grid;
+		grid-row-gap: 0.75em;
+	`;
+
+	suggestions.forEach(
+		(suggestion) =>
+		{
+			const row = document.createElement("li");
+			row.style =
+			`
+				display: block;
+				grid-template-columns: max-content auto;
+				cursor: pointer;
+				text-decoration: underline;
+			`;
+			row.title = suggestion["long_title"];
+			row.textContent = `${suggestion["username"]}: ${suggestion["short_title"]}`;
+			row.addEventListener("click",
+				(event) =>
+				{
+					suggestions = suggestions.filter(item => item !== suggestion);
+					port.postMessage({type:"removeSuggestion", ...suggestion});
+					window.location = suggestion["url"];
+				}
+			);
+			suggestionsList.appendChild(row);
+		}
+	);
+
+	interfaceBox.appendChild(suggestionsList);
+
+	return suggestionsList;
+}
+
+function displayContextMenu(event)
+{
+	const target = event.currentTarget;
+	let menu = document.querySelector(`#contextMenu`);
+	if (menu !== null)
+	{
+		if (menu.parentNode === target)
+		{
+			return;
+		}
+		else
+		{
+			menu.remove();
+		}
+	}
+
+	const top = event.clientY - target.getBoundingClientRect().top + target.offsetTop;
+	const left = event.clientX - target.getBoundingClientRect().left + target.offsetLeft;
+
+	const targetUsername = target.firstChild.textContent; 
+
+	menu = document.createElement("ul");
+	menu.id = "contextMenu";
+	menu.style =
+	`
+		position: absolute;
+		top: ${top}px;
+		left: ${left}px;
+
+		width: max-content;
+		border: 1px solid #888;
+
+		padding: 0.25em 0;
+
+		box-shadow: 2px 2px 3px rgba(0,0,0, 0.5);
+
+		list-style: none;
+		background-color: white;
+
+		display: grid;
+
+		font-size: 85%;
+	`;
+
+	const mOver = (event) =>
+	{
+		event.target.style.backgroundColor = "#ccc";
+	};
+	const mOut = (event) =>
+	{
+		event.target.style.backgroundColor = "unset";
+	}
+
+	let menuItem = document.createElement("li");
+	menuItem.textContent = `Make ${targetUsername} a host`;
+	menuItem.style =
+	`
+		padding: 0.25em 2em;
+	`;
+	menuItem.addEventListener("mouseover", mOver);
+	menuItem.addEventListener("mouseout", mOut);
+	menuItem.addEventListener("click",
+		(event) =>
+		{
+			port.postMessage({type: "host_promotion", username: targetUsername});
+			removeContextMenu();
+		}
+	);
+	menu.appendChild(menuItem);
+
+	menuItem = menuItem.cloneNode(true);
+	menuItem.textContent = `Swap with ${targetUsername} as a host`;
+	menuItem.addEventListener("mouseover", mOver);
+	menuItem.addEventListener("mouseout", mOut);
+	menuItem.addEventListener("click",
+		(event) =>
+		{
+			port.postMessage({type: "change_host", username: targetUsername});
+			removeContextMenu();
+		}
+	);
+	menu.appendChild(menuItem);
+
+
+	target.appendChild(menu);
+	if (menu.getBoundingClientRect().right > (window.innerWidth - 10))
+	{
+		menu.style.transform += `translateX(${window.innerWidth - menu.getBoundingClientRect().right - 10}px)`;
+	}
+	if (menu.getBoundingClientRect().bottom > (window.innerHeight - 10))
+	{
+		menu.style.transform += "translateY(-100%)";
+	}
+
+
+	menu.addEventListener("mouseup",
+		(event) =>
+		{
+			event.stopPropagation();
+		}
+	);
+	document.addEventListener("mouseup", removeContextMenu);
+}
+
+function removeContextMenu()
+{
+	const menu = document.querySelector(`#contextMenu`);
+	if (menu !== null)
+	{
+		menu.remove();
+	}
+
+	document.removeEventListener("mouseup", removeContextMenu);
 }
 
 function quizStarted(mutationList)
@@ -896,6 +1346,10 @@ function addCreateRoomForm()
 	usernameInput.id = "createRoomUsernameInput";
 	usernameInput.setAttribute("type", "text");
 	usernameInput.value = "Enter Username";
+	if (options.useDefaultUsername && options.defaultUsername !== "")
+	{
+		usernameInput.value = options.defaultUsername;
+	}
 
 	form.appendChild(usernameInput);
 
@@ -903,7 +1357,10 @@ function addCreateRoomForm()
 	button.id = "createRoomSubmit";
 	button.setAttribute("type", "submit");
 	button.value = "Create Room";
-	button.disabled = true;
+	if (usernameInput.value === "Enter Username")
+	{
+		button.disabled = true;
+	}
 
 
 	usernameInput.addEventListener("keyup", function ()
@@ -952,6 +1409,10 @@ function addJoinRoomForm()
 	usernameInput.id = "joinRoomUsernameInput";
 	usernameInput.setAttribute("type", "text");
 	usernameInput.value = "Enter Username";
+	if (options.useDefaultUsername && options.defaultUsername !== "")
+	{
+		usernameInput.value = options.defaultUsername;
+	}
 
 	form.appendChild(usernameInput);
 

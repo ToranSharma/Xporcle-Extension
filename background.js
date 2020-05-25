@@ -34,6 +34,8 @@ let host = null;
 let messagePort = null;
 let scores = {};
 let urls = {};
+let hosts = [];
+let suggestions = [];
 let playing = null;
 
 chrome.runtime.onConnect.addListener(
@@ -58,7 +60,9 @@ chrome.runtime.onConnect.addListener(
 									username: username,
 									host: host,
 									scores: scores,
-									urls: urls
+									urls: urls,
+									hosts: hosts,
+									suggestions: suggestions
 								}
 							);
 							ws.send(JSON.stringify({type: "url_update", url: message["url"]}))
@@ -72,6 +76,20 @@ chrome.runtime.onConnect.addListener(
 					else if (message.type === "startConnection")
 					{
 						startConnection(message.initialMessage);
+					}
+					else if (message.type === "removeSuggestion")
+					{
+						suggestions = suggestions.filter(
+							(suggestion) =>
+							{
+								return !(
+									suggestion["username"] === message["username"]
+									&& suggestion["url"] === message["url"]
+									&& suggestion["short_title"] === message["short_title"]
+									&& suggestion["long_title"] === message["long_title"]
+								);
+							}
+						);
 					}
 					else
 					{
@@ -114,7 +132,7 @@ function startConnection(initialMessage)
 		roomCode = initialMessage["code"];
 	}
 
-	ws = new WebSocket("wss://toransharma.com/sporcle")
+	ws = new WebSocket("wss://toransharma.com/xporcle")
 
 	ws.onerror = (error) => 
 	{
@@ -143,12 +161,34 @@ function forwardMessage(event)
 	if (messageType === "new_room_code")
 	{
 		host = true;
+		hosts = [username];
 		roomCode = message["room_code"];
 	}
-	else if (messageType === "join_room" && !message["success"])
+	else if (messageType === "join_room")
 	{
-		ws.close();
-		reset();
+		if (message["success"])
+		{
+			hosts = message["hosts"];
+		}
+		else
+		{
+			ws.close();
+			reset();
+		}
+	}
+	else if (messageType === "hosts_update")
+	{
+		hosts = message["hosts"];
+		if (!hosts.includes(username))
+		{
+			host = false;
+			urls = {};
+			suggestions = [];
+		}
+	}
+	else if (messageType === "host_promotion")
+	{
+		host = true;
 	}
 	else if (messageType === "scores_update")
 	{
@@ -161,6 +201,31 @@ function forwardMessage(event)
 	else if (messageType === "quiz_finished")
 	{
 		playing = false;
+	}
+	else if (messageType === "suggest_quiz")
+	{
+
+		const duplicate = suggestions.some(
+			(suggestion) =>
+			{
+				return (
+					suggestion["username"] === message["username"]
+					&& suggestion["url"] === message["url"]
+					&& suggestion["short_title"] === message["short_title"]
+					&& suggestion["long_title"] === message["long_title"]
+				);
+			}
+		);
+		if (!duplicate)
+		{
+			const suggestion = Object.assign({}, message);
+			delete suggestion["type"];
+			suggestions.push(suggestion);
+		}
+		else
+		{
+			return;
+		}
 	}
 	else if (messageType === "url_update")
 	{
@@ -177,6 +242,7 @@ function forwardMessage(event)
 		else
 		{
 			delete urls[removedUser];
+			delete hosts[removedUser];
 		}
 	}
 
@@ -194,5 +260,6 @@ function reset()
 	host = null;
 	scores = {};
 	urls = {};
+	hosts = [];
 	playing = null;
 }

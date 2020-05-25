@@ -5,6 +5,26 @@ Changelog
 ------------
 -
 
+[v1.0.0] - 2020-05-25
+---------------------
+[GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v1.0.0)
+### Added
+- Options to the options page and page action popout window.
+  - Option to auto fill a custom default username in the create and join room
+  forms.
+  - Option to blur out the room code, maybe useful if streaming a private room.
+  - Options script to handle the changing and saving of the options.
+  - Options page stylesheet.
+- Button to suggest a quiz to hosts.
+- List of suggestions from other players for hosts to look at.
+- Handling of being promoted to a host.
+- Handling of being removed as a host.
+- Custom context menu for hosts to promote other users to a host.
+
+## Changed
+- Websocket server url changed to toransharma.com/xporcle.
+- Leaderboard now includes a wins column, and points ties are decided by wins.
+
 [v0.0.2] - 2020-05-19
 ---------------------
 [GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v0.0.2)
@@ -47,5 +67,6 @@ Changelog
 - Options page popup placeholder.
 
 [Unreleased]: https://github.com/ToranSharma/Xporcle-Extension/compare/master...develop
+[v1.0.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v0.0.2...v1.0.0
 [v0.0.2]: https://github.com/ToranSharma/Xporcle-Extension/compare/v0.0.1...v0.0.2
 [v0.0.1]: https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v0.0.1
