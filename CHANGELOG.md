@@ -11,6 +11,7 @@ Changelog
 - Custom context menu for hosts to promote other users to a host.
 
 ## Changed
+- Websocket server url changed to toransharma.com/xporcle.
 - Leaderboard now includes a wins column, and points ties are decied by wins.
 
 [v0.0.2] - 2020-05-19

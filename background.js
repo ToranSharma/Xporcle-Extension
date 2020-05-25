@@ -132,7 +132,7 @@ function startConnection(initialMessage)
 		roomCode = initialMessage["code"];
 	}
 
-	ws = new WebSocket("wss://toransharma.com/sporcle")
+	ws = new WebSocket("wss://toransharma.com/xporcle")
 
 	ws.onerror = (error) => 
 	{
