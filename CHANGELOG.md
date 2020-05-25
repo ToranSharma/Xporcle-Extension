@@ -18,7 +18,7 @@ Changelog
 
 ## Changed
 - Websocket server url changed to toransharma.com/xporcle.
-- Leaderboard now includes a wins column, and points ties are decied by wins.
+- Leaderboard now includes a wins column, and points ties are decided by wins.
 
 [v0.0.2] - 2020-05-19
 ---------------------
