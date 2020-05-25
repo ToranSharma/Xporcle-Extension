@@ -3,6 +3,11 @@ Changelog
 
 [Unreleased]
 ------------
+-
+
+[v1.0.0] - 2020-05-25
+---------------------
+[GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v1.0.0)
 ### Added
 - Options to the options page and page action popout window.
   - Option to auto fill a custom default username in the create and join room
@@ -62,5 +67,6 @@ Changelog
 - Options page popup placeholder.
 
 [Unreleased]: https://github.com/ToranSharma/Xporcle-Extension/compare/master...develop
+[v1.0.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v0.0.2...v1.0.0
 [v0.0.2]: https://github.com/ToranSharma/Xporcle-Extension/compare/v0.0.1...v0.0.2
 [v0.0.1]: https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v0.0.1
