@@ -10,6 +10,9 @@ Changelog
 - Handling of being removed as a host.
 - Custom context menu for hosts to promote other users to a host.
 
+## Changed
+- Leaderboard now includes a wins column, and points ties are decied by wins.
+
 [v0.0.2] - 2020-05-19
 ---------------------
 [GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v0.0.2)

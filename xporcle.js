@@ -471,7 +471,7 @@ function onRoomConnect(existingScores)
 	else
 	{
 		scores = {};
-		scores[username] = 0;
+		scores[username] = {score: 0, wins: 0};
 	}
 
 	updateLeaderboard(scores);
@@ -563,10 +563,12 @@ function updateLeaderboard(scores)
 	rows.forEach(
 		(row) => {
 			const nameElem = row.firstChild;
+			const winsElem = row.lastChild.previousElementSibling;
 			const pointsElem = row.lastChild;
 			if (scores[nameElem.textContent] !== undefined)
 			{
-				pointsElem.textContent = scores[nameElem.textContent];
+				winsElem.textContent = scores[nameElem.textContent]["wins"];
+				pointsElem.textContent = scores[nameElem.textContent]["score"];
 				delete scores[nameElem.textContent];
 			}
 			else
@@ -576,12 +578,13 @@ function updateLeaderboard(scores)
 		}
 	);
 
-	for (const [name, points] of Object.entries(scores))
+	for (const [name, {score, wins}] of Object.entries(scores))
 	{
 		const row = rows[0].cloneNode(true);
 		row.firstChild.textContent = name;
 		row.firstChild.nextElementSibling.textContent = (hosts.includes(name)) ? "host" : "";
-		row.lastChild.textContent = points;
+		row.lastChild.previousElementSibling.textContent = wins;
+		row.lastChild.textContent = score;
 
 		leaderboard.appendChild(row);
 	}
@@ -601,13 +604,27 @@ function updateLeaderboard(scores)
 		else
 			return 1;
 	};
+	const byWins = (a, b) =>
+	{
+		const aName = a.firstChild.textContent;
+		const bName = b.firstChild.textContent;
+		const aWins = scores[aName]["wins"];
+		const bWins = scores[bName]["wins"];
+
+		if (aWins < bWins)
+			return 1;
+		else if (aWins > bWins)
+			return -1;
+		else
+			return 0;
+	}
 
 	const byScore = (a, b) =>
 	{
 		const aName = a.firstChild.textContent;
 		const bName = b.firstChild.textContent;
-		const aScore = scores[aName];
-		const bScore = scores[bName];
+		const aScore = scores[aName]["score"];
+		const bScore = scores[bName]["score"];
 
 		if (aScore < bScore)
 			return 1;
@@ -828,7 +845,6 @@ function addLeaderboard(scores)
 	leaderboard.style =
 	`
 		width: 100%;
-		max-width: 10em;
 		padding: 0;
 		margin: auto;
 	`;
@@ -838,27 +854,40 @@ function addLeaderboard(scores)
 	`
 		margin: 0 0 1em 0;
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: 3fr 1fr 1fr;
 	`;
 	columnHeaders.appendChild(document.createElement("span"));
 	columnHeaders.lastChild.textContent = "Name";
+	columnHeaders.appendChild(document.createElement("span"));
+	columnHeaders.lastChild.textContent = "Wins";
+	columnHeaders.lastChild.style = `text-align: right;`;
 	columnHeaders.appendChild(document.createElement("span"));
 	columnHeaders.lastChild.textContent = "Points";
 	columnHeaders.lastChild.style = `text-align: right;`;
 
 	leaderboard.appendChild(columnHeaders);
 
-	for (const [name, points] of Object.entries(scores))
+	for (const [name, {score, wins}] of Object.entries(scores))
 	{
 		const row = document.createElement("li");
 		row.style =
 		`
 			display: grid;
-			grid-template-columns: fit-content(80%) auto max-content;
+			grid-template-columns: fit-content(calc(60% - 3em)) 1fr 20% 20%;
 		`;
-		row.appendChild(document.createTextNode(name));
 
+		// Username
+		const usernameContainer = document.createElement("span");
+		usernameContainer.textContent = name;
+		usernameContainer.style =
+		`
+			overflow-wrap: anywhere;
+		`;
+		row.appendChild(usernameContainer);
+
+		// Host
 		row.appendChild(document.createElement("span"));
+		row.lastChild.textContent = (hosts.includes(name)) ? "host" : "";
 		row.lastChild.style =
 		`
 			font-size: 80%;
@@ -866,14 +895,19 @@ function addLeaderboard(scores)
 			padding-left: 0.5em;
 			align-self: end;
 		`;
-		row.lastChild.textContent = (hosts.includes(name)) ? "host" : "";
 
-		const pointsContainer = document.createElement("span");
-		pointsContainer.textContent = points;
-		pointsContainer.style =
+		// Wins
+		const winsContainer = document.createElement("span");
+		winsContainer.textContent = wins;
+		winsContainer.style =
 		`
 			text-align: right;
 		`;
+		row.appendChild(winsContainer);
+
+		// Points
+		const pointsContainer = row.lastChild.cloneNode(true);
+		pointsContainer.textContent = score;
 		row.appendChild(pointsContainer);
 		
 		leaderboard.appendChild(row);
