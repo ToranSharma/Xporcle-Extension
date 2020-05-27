@@ -5,6 +5,12 @@ Changelog
 ------------
 -
 
+[v1.0.1] - 2020-05-27
+---------------------
+[GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v1.0.1)
+### Fixed
+- Error handling of invalid room code, or taken username when joining a room.
+
 [v1.0.0] - 2020-05-25
 ---------------------
 [GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v1.0.0)
@@ -67,6 +73,7 @@ Changelog
 - Options page popup placeholder.
 
 [Unreleased]: https://github.com/ToranSharma/Xporcle-Extension/compare/master...develop
+[v1.0.1]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.0.0...v1.0.1
 [v1.0.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v0.0.2...v1.0.0
 [v0.0.2]: https://github.com/ToranSharma/Xporcle-Extension/compare/v0.0.1...v0.0.2
 [v0.0.1]: https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v0.0.1
