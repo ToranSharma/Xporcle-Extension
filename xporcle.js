@@ -247,7 +247,7 @@ function addInterfaceBox()
 	}
 }
 
-function resetInterface()
+function resetInterface(errorElement, lastUsername, lastCode)
 {
 	quizStartObserver.disconnect();
 	scoreObserver.disconnect();
@@ -266,7 +266,28 @@ function resetInterface()
 		(element) => element.remove()
 	);
 
-	init();
+	init().then(
+		() =>
+		{
+			if (errorElement !== undefined)
+			{
+				interfaceBox.appendChild(errorElement);
+				if (lastUsername !== undefined)
+				{
+					document.querySelectorAll(`#createRoomUsernameInput, #joinRoomUsernameInput`).forEach(
+						(input) =>
+						{
+							input.value = lastUsername;
+						}
+					);
+				}
+				if (lastCode !== undefined)
+				{
+					document.querySelector(`#joinRoomCodeInput`).value = lastCode;
+				}
+			}
+		}
+	);
 }
 
 function processMessage(message)
@@ -505,8 +526,21 @@ async function joinRoom(event, form)
 	}
 	catch (error)
 	{
-		console.error(error);
-		resetInterface();
+		const errorMessageBox = document.createElement("div");
+		errorMessageBox.classList.add("errorMessage");
+		errorMessageBox.textContent = error;
+		errorMessageBox.style = 
+		`
+			color: red;
+			background-Color: #f7e6e6;
+			outline: 1px solid pink;
+		`;
+		window.setTimeout(() => {errorMessageBox.remove();}, 5000);
+
+		resetInterface(errorMessageBox,
+			(error !== "username taken") ? username : undefined,
+			(error !== "invalid code") ? roomCode : undefined
+		);
 		return;
 	}
 
