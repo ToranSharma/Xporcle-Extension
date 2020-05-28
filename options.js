@@ -155,7 +155,7 @@ function changeAll(checked)
 }
 
 
-window.onload = () =>
+window.onload = async () =>
 {
 	chrome.runtime.sendMessage({type: "tabsRequest"},
 		(response) => {
@@ -164,4 +164,77 @@ window.onload = () =>
 	);
 
 	getOptions(true);
+
+	// Generate list of saved rooms
+	savedRooms = await new Promise(
+		(resolve, reject) =>
+		{
+			chrome.storage.sync.get("saves",
+				(data) =>
+				{
+					if (Object.keys(data).length === 0)
+					{
+						resolve({});
+					}
+					else
+					{
+						resolve(data.saves);
+					}
+				}
+			);
+		}
+	);
+	const savedRoomsList = document.querySelector(`#savedRoomsList`);
+	const showNoRooms = () =>
+	{
+		savedRoomsList.lastElementChild.remove()
+		savedRoomsList.appendChild(document.createElement("p"));
+		savedRoomsList.lastChild.textContent = "No Saved Rooms";
+	}
+	if (Object.keys(savedRooms).length === 0)
+	{
+		showNoRooms();
+	}
+	else
+	{
+		Object.entries(savedRooms).forEach(
+			([roomName, data]) =>
+			{
+				const item = document.createElement("li");
+				item.id = roomName;
+
+				const name = document.createElement("span");
+				item.appendChild(name);
+				const username = document.createElement("span");
+				item.appendChild(username);
+				const remove = document.createElement("span");
+				item.appendChild(remove);
+
+				name.textContent = roomName;
+				username.textContent = data.me;
+				remove.textContent = "delete";
+
+				remove.addEventListener("click",
+					(event) =>
+					{
+						item.remove();
+						if (savedRoomsList.querySelectorAll(`li`).length === 0)
+						{
+							showNoRooms();
+						}
+
+						delete savedRooms[roomName];
+						chrome.storage.sync.set({saves: savedRooms});
+						tabs.forEach(
+							(id) => {
+								chrome.tabs.sendMessage(id, {type: "savesChanged"})
+							}
+						);
+					}
+				);
+
+				savedRoomsList.appendChild(item);
+			}
+		);
+	}
 }

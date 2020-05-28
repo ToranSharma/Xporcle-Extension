@@ -46,7 +46,7 @@ function run()
 	chrome.runtime.onMessage.addListener(
 		(message) =>
 		{
-			if (message.type == "optionsChanged")
+			if (message.type === "optionsChanged")
 			{
 				retrieveOptions().then(
 					() =>
@@ -54,6 +54,30 @@ function run()
 						applyOptionsChanges();
 					}
 				);
+			}
+			else if (message.type === "savesChanged")
+			{
+				const loadRoomForm = document.querySelector(`#loadRoomForm`);
+				if (loadRoomForm !== null)
+				{
+					chrome.storage.sync.get("saves",
+						(data) =>
+						{
+							let storedSaveNames;
+							if (Object.keys(data).length === 0)
+							{
+								storedSaveNames = [];
+							}
+							else
+							{
+								storedSaveNames = Object.keys(data.saves);
+							}
+							
+							loadRoomForm.remove();
+							addLoadRoomForm(storedSaveNames);
+						}
+					);
+				}
 			}
 		}
 	);
@@ -1755,6 +1779,10 @@ function addJoinRoomForm()
 
 function addLoadRoomForm(storedSaveNames)
 {
+	if (storedSaveNames.length === 0)
+	{
+		return;
+	}
 	const form = document.createElement("form");
 	form.id = "loadRoomForm";
 	form.autocomplete = "off";
