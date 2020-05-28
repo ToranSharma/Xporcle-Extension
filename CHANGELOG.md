@@ -3,7 +3,9 @@ Changelog
 
 [Unreleased]
 ------------
--
+### Added
+- Ability to save the state of the room under a custom name.
+- Ability to load a room from a saved state.
 
 [v1.0.1] - 2020-05-27
 ---------------------

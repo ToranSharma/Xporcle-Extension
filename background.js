@@ -37,6 +37,7 @@ let urls = {};
 let hosts = [];
 let suggestions = [];
 let playing = null;
+let saveName = null;
 
 chrome.runtime.onConnect.addListener(
 	(port) =>
@@ -62,7 +63,8 @@ chrome.runtime.onConnect.addListener(
 									scores: scores,
 									urls: urls,
 									hosts: hosts,
-									suggestions: suggestions
+									suggestions: suggestions,
+									saveName: saveName,
 								}
 							);
 							ws.send(JSON.stringify({type: "url_update", url: message["url"]}))
@@ -90,6 +92,10 @@ chrome.runtime.onConnect.addListener(
 								);
 							}
 						);
+					}
+					else if (message.type === "saveName")
+					{
+						saveName = message["saveName"];
 					}
 					else
 					{
@@ -130,6 +136,14 @@ function startConnection(initialMessage)
 	if (initialMessage["code"] !== undefined)
 	{
 		roomCode = initialMessage["code"];
+	}
+	
+	if (initialMessage["saveName"] !== undefined)
+	{
+		// We are loading from a save.
+		saveName = initialMessage["saveName"];
+		delete initialMessage["saveName"]; // This doesn't need to be send to the sever.
+		scores = initialMessage["scores"];
 	}
 
 	ws = new WebSocket("wss://toransharma.com/xporcle")
@@ -262,4 +276,5 @@ function reset()
 	urls = {};
 	hosts = [];
 	playing = null;
+	saveName = null;
 }
