@@ -133,14 +133,24 @@ button
 #savedRoomsList li
 {
 	display: grid;
-	grid-template-columns: 4fr 3fr 1fr;
+	grid-template-columns: 4fr 2fr 1fr 1fr;
 }
 #savedRoomsList li:hover
 {
 	background-color: #ccc;
 }
-	#savedRoomsList li span:last-child
+	#savedRoomsList li span.rename
 	{
+		width: max-content;
+		margin-left: auto;
+		text-align: right;
+		cursor: pointer;
+		color: turquoise;
+	}
+	#savedRoomsList li span.delete
+	{
+		width: max-content;
+		margin-left: auto;
 		text-align: right;
 		cursor: pointer;
 		color: red;

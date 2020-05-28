@@ -201,19 +201,64 @@ window.onload = async () =>
 			([roomName, data]) =>
 			{
 				const item = document.createElement("li");
-				item.id = roomName;
 
 				const name = document.createElement("span");
 				item.appendChild(name);
 				const username = document.createElement("span");
 				item.appendChild(username);
+				const rename = document.createElement("span");
+				item.appendChild(rename);
 				const remove = document.createElement("span");
 				item.appendChild(remove);
 
 				name.textContent = roomName;
 				username.textContent = data.me;
+				rename.classList.add("rename");
+				rename.textContent = "rename";
+				remove.classList.add("delete");
 				remove.textContent = "delete";
 
+				rename.addEventListener("click",
+					(event) =>
+					{
+						const nameInput = document.createElement("input");
+						nameInput.type = "text";
+						nameInput.value = name.textContent;
+						name.replaceWith(nameInput);
+						nameInput.select();
+
+						nameInput.addEventListener("blur",
+							(event) =>
+							{
+								const newName = nameInput.value;
+								if (newName !== "" && newName !== roomName)
+								{
+									name.textContent = newName;
+									savedRooms[newName] = data;
+									delete savedRooms[roomName];
+									roomName = newName;
+									chrome.storage.sync.set({saves: savedRooms});
+									tabs.forEach(
+										(id) => {
+											chrome.tabs.sendMessage(id, {type: "savesChanged"})
+										}
+									);
+								}
+
+								nameInput.replaceWith(name);
+							}
+						);
+						nameInput.addEventListener("keyup",
+							(event) =>
+							{
+								if (event.key === "Enter")
+								{
+									nameInput.blur();
+								}
+							}
+						);
+					}
+				);
 				remove.addEventListener("click",
 					(event) =>
 					{

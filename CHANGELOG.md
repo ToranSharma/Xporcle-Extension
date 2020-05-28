@@ -6,7 +6,8 @@ Changelog
 ### Added
 - Ability to save the state of the room under a custom name.
 - Ability to load a room from a saved state.
-- Ability to delete saved rooms in the options popup box.
+- Ability to delete saved rooms in the options popup window.
+- Ability to rename saved rooms in the options popup window.
 
 [v1.0.1] - 2020-05-27
 ---------------------
