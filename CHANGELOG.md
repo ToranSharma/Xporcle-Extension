@@ -5,6 +5,15 @@ Changelog
 ------------
 -
 
+[v1.1.0] - 2020-05-28
+---------------------
+[GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v1.1.0)
+### Added
+- Ability to save the state of the room under a custom name.
+- Ability to load a room from a saved state.
+- Ability to delete saved rooms in the options popup window.
+- Ability to rename saved rooms in the options popup window.
+
 [v1.0.1] - 2020-05-27
 ---------------------
 [GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v1.0.1)
@@ -73,6 +82,7 @@ Changelog
 - Options page popup placeholder.
 
 [Unreleased]: https://github.com/ToranSharma/Xporcle-Extension/compare/master...develop
+[v1.1.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.0.1...v1.1.0
 [v1.0.1]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.0.0...v1.0.1
 [v1.0.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v0.0.2...v1.0.0
 [v0.0.2]: https://github.com/ToranSharma/Xporcle-Extension/compare/v0.0.1...v0.0.2

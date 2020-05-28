@@ -14,6 +14,10 @@ let quizRunning = false;
 
 let options = {};
 
+let confirmSaveDataRecieved = null;
+let saveData = null;
+let saveName = null;
+
 const quizStartObserver = new MutationObserver(quizStarted);
 const scoreObserver = new MutationObserver(() => sendLiveScore());
 const quizFinishObserver = new MutationObserver(quizFinished);
@@ -42,7 +46,7 @@ function run()
 	chrome.runtime.onMessage.addListener(
 		(message) =>
 		{
-			if (message.type == "optionsChanged")
+			if (message.type === "optionsChanged")
 			{
 				retrieveOptions().then(
 					() =>
@@ -50,6 +54,30 @@ function run()
 						applyOptionsChanges();
 					}
 				);
+			}
+			else if (message.type === "savesChanged")
+			{
+				const loadRoomForm = document.querySelector(`#loadRoomForm`);
+				if (loadRoomForm !== null)
+				{
+					chrome.storage.sync.get("saves",
+						(data) =>
+						{
+							let storedSaveNames;
+							if (Object.keys(data).length === 0)
+							{
+								storedSaveNames = [];
+							}
+							else
+							{
+								storedSaveNames = Object.keys(data.saves);
+							}
+							
+							loadRoomForm.remove();
+							addLoadRoomForm(storedSaveNames);
+						}
+					);
+				}
 			}
 		}
 	);
@@ -104,6 +132,7 @@ async function init()
 		urls = statusResponse["urls"];
 		hosts = statusResponse["hosts"];
 		suggestions = statusResponse["suggestions"];
+		saveName = statusResponse["saveName"];
 
 		onRoomConnect(statusResponse["scores"]);
 	}
@@ -112,6 +141,27 @@ async function init()
 		// Not connected so add room forms
 		addCreateRoomForm();
 		addJoinRoomForm();
+
+		// Get the stored save names
+		const storedSaveNames = await new Promise(
+			(resolve, reject) =>
+			{
+				chrome.storage.sync.get("saves",
+					(data) =>
+					{
+						if (Object.keys(data).length === 0)
+						{
+							resolve([]);
+						}
+						else
+						{
+							resolve(Object.keys(data["saves"]));
+						}
+					}
+				)
+			}
+		);
+		addLoadRoomForm(storedSaveNames);
 	}
 }
 
@@ -262,6 +312,9 @@ function resetInterface(errorElement, lastUsername, lastCode)
 	hosts = [];
 	suggestions = [];
 
+	saveData = null;
+	saveName = null;
+
 	Array.from(interfaceBox.childNodes).forEach(
 		(element) => element.remove()
 	);
@@ -318,6 +371,17 @@ function processMessage(message)
 			{
 				delete urls[removedUser];
 				delete hosts[removedUser];
+			}
+			break;
+		case "save_data":
+			if (confirmSaveDataRecieved !== null)
+			{
+				saveData =
+				{
+					scores: message["data"],
+					me: username
+				}
+				confirmSaveDataRecieved();
 			}
 			break;
 		case "hosts_update":
@@ -547,6 +611,88 @@ async function joinRoom(event, form)
 	onRoomConnect();
 }
 
+async function loadRoom(event, form)
+{
+	event.preventDefault();
+
+	saveName = form.querySelector(`#saveSelect`).value;
+
+	const button = form.querySelector(`input[type="submit"]`);
+	button.disabled = true;
+	button.value = "...";
+
+	saveData = await new Promise(
+		(resolve, reject) =>
+		{
+			chrome.storage.sync.get("saves", data => resolve(data.saves[saveName]));
+		}
+	);
+
+	username = saveData.me;
+
+	const message = {
+		type: "load_room",
+		username: username,
+		url: window.location.href,
+		saveName: saveName,
+		scores: saveData.scores
+	};
+
+	try
+	{
+		port.postMessage({type: "startConnection", initialMessage: message});
+
+		let connectListener;
+		await new Promise((resolve, reject) => {
+			port.onMessage.addListener(
+				connectListener = (message) =>
+				{
+					port.onMessage.removeListener(connectListener);
+					if (message.type === "new_room_code")
+					{
+						host = true;
+						hosts = [username];
+						roomCode = message["room_code"];
+						resolve();
+					}
+					else
+					{
+						reject(message);
+					}
+				}
+			);
+		});
+	}
+	catch (error)
+	{
+		const errorMessageBox = document.createElement("div");
+		errorMessageBox.classList.add("errorMessage");
+		errorMessageBox.textContent = error;
+		errorMessageBox.style = 
+		`
+			color: red;
+			background-Color: #f7e6e6;
+			outline: 1px solid pink;
+		`;
+		window.setTimeout(() => {errorMessageBox.remove();}, 5000);
+
+		resetInterface(errorMessageBox);
+		return;
+	}
+
+	saveData = null;
+
+	try
+	{
+		await navigator.clipboard.writeText(roomCode);
+	}
+	catch (error)
+	{
+		console.error("Clipboard write failure: ", error);
+	}
+
+	onRoomConnect();
+}
 function onRoomConnect(existingScores)
 {
 	// Set up message handing
@@ -604,6 +750,12 @@ function onRoomConnect(existingScores)
 		}
 	);
 
+	// Add a button to save the current room state
+	if (host)
+	{
+		addSaveRoomButton();
+	}
+
 	// If on a quiz page, observe for the start of the quiz
 	if (onQuizPage)
 	{
@@ -623,6 +775,15 @@ function onRoomConnect(existingScores)
 		updateLeaderboardUrls();
 		updateSuggestionList();
 	}
+}
+
+function addSaveRoomButton()
+{
+	const saveButton = document.createElement("button");
+	saveButton.id = "saveButton";
+	saveButton.textContent = "Save Room";
+	saveButton.addEventListener("click", saveRoom);
+	interfaceBox.appendChild(saveButton);
 }
 
 function addChangeQuizButton()
@@ -669,6 +830,104 @@ function addSuggestionQuizButton()
 	);
 	// The button goes just after the room code header, where the changeQuizButton would be for hosts
 	interfaceBox.insertBefore(suggestQuizButton, interfaceBox.querySelector(`#roomCodeHeader`).nextElementSibling);
+}
+
+async function saveRoom(event)
+{
+	const saveDataRecieved = new Promise(
+		(resolve, reject) =>
+		{
+			confirmSaveDataRecieved = resolve;
+			setTimeout(reject, 5000); // Reject if data hasn't been recieved in 5 seconds.
+		}
+	)
+	port.postMessage({type: "save_room"});
+	
+	try
+	{
+		savesObject = await new Promise(
+			(resolve, reject) =>
+			{
+				chrome.storage.sync.get("saves",
+					(data) =>
+					{
+						if (Object.keys(data).length === 0)
+						{
+							resolve({});
+						}
+						else
+						{
+							resolve(data["saves"]);
+						}
+					}
+				);
+			}
+		);
+		await saveDataRecieved;
+		// Data has been recieved and stored in saveData.
+		// Check if we have a previously set up a name for this save.
+		
+		if (saveName === null)
+		{
+			// No save name already specified,
+			// we need to ask the user for this before we can store the save.
+
+			const otherSaveNames = Object.keys(savesObject);
+
+			const defaultName = `Room from ${(new Date()).toLocaleDateString()}`;
+
+			saveName = prompt(
+				`Enter a name for this new save.${(otherSaveNames.length !== 0) ? "\nExisting save names:\n" + otherSaveNames.join("\n") : ""}`,
+				defaultName
+			);
+			
+			if (
+				saveName === null // Canceled save prompt
+				||
+				(
+					otherSaveNames.includes(saveName) // saveName already exists
+					&& !confirm(`Replace existing save - ${saveName}`) // Canceled replace confirmation
+				)
+			)
+			{
+				throw "canceled";
+			}
+
+			if (saveName === "")
+			{
+				// If an empty string is given as the name, just revert to the default
+				saveName = defaultName;
+			}
+		}
+
+		// Send the saveName to the background script, so it can be given back to us after page changes
+		port.postMessage({type: "saveName", saveName: saveName});
+
+		// Put the save data in the saves object
+		savesObject[saveName] = saveData;
+
+		// Store the updated savesObject
+		chrome.storage.sync.set({saves: savesObject});
+	}
+	catch (error)
+	{
+		// Something went wrong.
+
+		// clear the saveData and the data recieved confirmation function
+		saveData = null;
+		confirmSaveDataRecieved = null;
+
+		if (error === "timed out")
+		{
+			// Data not been recieved in time.
+		}
+		else if (error === "canceled")
+		{
+			// Saving operation was canceled at some point.
+			// This was in one of the naming operations, so let's clear the saveName
+			saveName = null;
+		}
+	}
 }
 
 function updateLeaderboard(scores)
@@ -1510,6 +1769,62 @@ function addJoinRoomForm()
 		{
 			if (this.value === "")
 				this.value = "Enter Room Code";
+		}
+	);
+
+	form.appendChild(button);
+
+	interfaceBox.appendChild(form);
+}
+
+function addLoadRoomForm(storedSaveNames)
+{
+	if (storedSaveNames.length === 0)
+	{
+		return;
+	}
+	const form = document.createElement("form");
+	form.id = "loadRoomForm";
+	form.autocomplete = "off";
+	form.addEventListener("submit", (event) => {loadRoom(event, form)});
+	form.style = 
+	`
+		display: grid;
+		grid-template-columns: min(100%, 10em);
+	`;
+
+	const heading = document.createElement("h3");
+	heading.textContent = "Load a Saved Room";
+	form.appendChild(heading);
+
+	const saveSelect = document.createElement("select");
+	saveSelect.id = "saveSelect";
+	saveSelect.appendChild(document.createElement("option"));
+	saveSelect.lastChild.value = "";
+	saveSelect.lastChild.textContent = "--Select a Save--";
+
+	storedSaveNames.forEach(
+		(save) =>
+		{
+			const option = document.createElement("option");
+			option.value = save;
+			option.textContent = save;
+			saveSelect.appendChild(option);
+		}
+	);
+
+	form.appendChild(saveSelect);
+
+	const button = document.createElement("input");
+	button.id = "loadRoomSubmit";
+	button.setAttribute("type", "submit");
+	button.value = "Load Room";
+	button.disabled = true;
+
+	saveSelect.addEventListener("change",
+		(event) =>
+		{
+			button.disabled = saveSelect.value === "";
 		}
 	);
 

@@ -155,7 +155,7 @@ function changeAll(checked)
 }
 
 
-window.onload = () =>
+window.onload = async () =>
 {
 	chrome.runtime.sendMessage({type: "tabsRequest"},
 		(response) => {
@@ -164,4 +164,122 @@ window.onload = () =>
 	);
 
 	getOptions(true);
+
+	// Generate list of saved rooms
+	savedRooms = await new Promise(
+		(resolve, reject) =>
+		{
+			chrome.storage.sync.get("saves",
+				(data) =>
+				{
+					if (Object.keys(data).length === 0)
+					{
+						resolve({});
+					}
+					else
+					{
+						resolve(data.saves);
+					}
+				}
+			);
+		}
+	);
+	const savedRoomsList = document.querySelector(`#savedRoomsList`);
+	const showNoRooms = () =>
+	{
+		savedRoomsList.lastElementChild.remove()
+		savedRoomsList.appendChild(document.createElement("p"));
+		savedRoomsList.lastChild.textContent = "No Saved Rooms";
+	}
+	if (Object.keys(savedRooms).length === 0)
+	{
+		showNoRooms();
+	}
+	else
+	{
+		Object.entries(savedRooms).forEach(
+			([roomName, data]) =>
+			{
+				const item = document.createElement("li");
+
+				const name = document.createElement("span");
+				item.appendChild(name);
+				const username = document.createElement("span");
+				item.appendChild(username);
+				const rename = document.createElement("span");
+				item.appendChild(rename);
+				const remove = document.createElement("span");
+				item.appendChild(remove);
+
+				name.textContent = roomName;
+				username.textContent = data.me;
+				rename.classList.add("rename");
+				rename.textContent = "rename";
+				remove.classList.add("delete");
+				remove.textContent = "delete";
+
+				rename.addEventListener("click",
+					(event) =>
+					{
+						const nameInput = document.createElement("input");
+						nameInput.type = "text";
+						nameInput.value = name.textContent;
+						name.replaceWith(nameInput);
+						nameInput.select();
+
+						nameInput.addEventListener("blur",
+							(event) =>
+							{
+								const newName = nameInput.value;
+								if (newName !== "" && newName !== roomName)
+								{
+									name.textContent = newName;
+									savedRooms[newName] = data;
+									delete savedRooms[roomName];
+									roomName = newName;
+									chrome.storage.sync.set({saves: savedRooms});
+									tabs.forEach(
+										(id) => {
+											chrome.tabs.sendMessage(id, {type: "savesChanged"})
+										}
+									);
+								}
+
+								nameInput.replaceWith(name);
+							}
+						);
+						nameInput.addEventListener("keyup",
+							(event) =>
+							{
+								if (event.key === "Enter")
+								{
+									nameInput.blur();
+								}
+							}
+						);
+					}
+				);
+				remove.addEventListener("click",
+					(event) =>
+					{
+						item.remove();
+						if (savedRoomsList.querySelectorAll(`li`).length === 0)
+						{
+							showNoRooms();
+						}
+
+						delete savedRooms[roomName];
+						chrome.storage.sync.set({saves: savedRooms});
+						tabs.forEach(
+							(id) => {
+								chrome.tabs.sendMessage(id, {type: "savesChanged"})
+							}
+						);
+					}
+				);
+
+				savedRoomsList.appendChild(item);
+			}
+		);
+	}
 }

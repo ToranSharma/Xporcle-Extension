@@ -6,9 +6,9 @@
 	<link href="stylesheets/options.css" rel="stylesheet" />
 </head>
 <body>
-	<h1>Xporcle <span id="version">v1.0.1</span></h1>
+	<h1>Xporcle <span id="version">v1.1.0</span></h1>
 	<h2>Enable or Disable Features Here</h2>
-	<ul>
+	<ul id="optionTree">
 		<li>
 			<input class="option" id="useDefaultUsername" type="checkbox" />
 			<label for="useDefaultUsername">Automatically Enter a Default Username</label>
@@ -24,9 +24,18 @@
 			<input class="option" id="blurRoomCode" type="checkbox" />
 			<label for="blurRoomCode">Blur Room Code</label>
 		</li>
-		<button id="enableAll">Enable all</button>
-		<button id="disableAll">Disable all</button>
-		<script type="text/javascript" charset="UTF-8" src="options.js"></script>
 	</ul>
+	<button id="enableAll">Enable all</button>
+	<button id="disableAll">Disable all</button>
+
+	<h2>Manage Saved Rooms</h2>
+	<ul id="savedRoomsList">
+		<h3>
+			<span>Save Name</span>
+			<span>Username</span>
+		</h3>
+	</ul>
+
+	<script type="text/javascript" charset="UTF-8" src="options.js"></script>
 </body>
 </html>

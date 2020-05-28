@@ -13,7 +13,7 @@ ul
 	list-style: none;
 }
 
-li
+#optionTree li
 {
 	display: grid;
 	grid-template-columns: 3em 1fr;
@@ -22,16 +22,16 @@ li
 	background-color: white;
 	position: relative;
 }
-	li > ul
+	#optionTree li > ul
 	{
 		grid-column: span 2;
 	}
-		li > ul > li
+		#optionTree li > ul > li
 		{
 			grid-template-columns: 3em 3em 1fr;
 			box-sizing: content-box;
 		}
-			li > ul > li::before
+			#optionTree li > ul > li::before
 			{
 				content: "";
 				z-index: 1;
@@ -46,27 +46,27 @@ li
 				left: calc(50% - 0.5px);
 			}
 
-input
+#optionTree input
 {
 	z-index: 3;
 	font-size: 100%;
 	align-self: center;
 }
-input:disabled, select:disabled
+#optionTree input:disabled, select:disabled
 {
 	opacity: 1;
 }
-input[type="checkbox"]
+#optionTree input[type="checkbox"]
 {
 	justify-self: center;
 	margin: 0;
 }
-input[type="text"]
+#optionTree input[type="text"]
 {
 	width: 100%;
 	box-sizing: border-box;
 }
-input[type="text"].dummy
+#optionTree input[type="text"].dummy
 {
 	left: 3em;
 	top: 0;
@@ -74,15 +74,15 @@ input[type="text"].dummy
 	transform: none;
 }
 
-.off
+#optionTree .off
 {
 	color: grey;
 }
-.labelFirst
+#optionTree .labelFirst
 {
 	grid-template-columns: 3em max-content 3em;
 }
-	.labelFirst > label
+	#optionTree .labelFirst > label
 	{
 		padding-left: 0;
 		padding-right: 0.5em;
@@ -90,12 +90,12 @@ input[type="text"].dummy
 		background-color: white;
 	}
 
-.labelFirst.containsTextInput
+#optionTree .labelFirst.containsTextInput
 {
 	grid-template-columns: 3em max-content 1fr;
 }
 
-.labelFirst.containsTextInput > .dummy
+#optionTree .labelFirst.containsTextInput > .dummy
 {
 	grid-column-start: 3;
 	left: 0;
@@ -103,7 +103,7 @@ input[type="text"].dummy
 }
 
 
-.dummy
+#optionTree .dummy
 {
 	position: absolute;
 	grid-column-start: 1;
@@ -112,14 +112,51 @@ input[type="text"].dummy
 	transform: translate(-50%, -50%);
 	box-shadow: inset 0px 0px 0 1.5em white;
 }
-button
-{
-	width: 6em;
-}
-label
+#optionTree label
 {
 	align-self: center;
 	height: 1.5em;
 	line-height: 1.5em;
 }
 
+button
+{
+	width: 6em;
+}
+
+#savedRoomsList h3
+{
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	margin: 0;
+}
+#savedRoomsList li
+{
+	display: grid;
+	grid-template-columns: 4fr 2fr 1fr 1fr;
+}
+#savedRoomsList li:hover
+{
+	background-color: #ccc;
+}
+	#savedRoomsList li span.rename
+	{
+		width: max-content;
+		margin-left: auto;
+		text-align: right;
+		cursor: pointer;
+		color: turquoise;
+	}
+	#savedRoomsList li span.delete
+	{
+		width: max-content;
+		margin-left: auto;
+		text-align: right;
+		cursor: pointer;
+		color: red;
+	}
+
+	#savedRoomsList li:not(:last-child)
+	{
+		border-bottom: 1px solid #999;
+	}
