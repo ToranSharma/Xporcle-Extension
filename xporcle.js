@@ -1631,8 +1631,8 @@ function addCreateRoomForm()
 	form.addEventListener("submit", (event) => {createRoom(event, form)});
 	form.style = 
 	`
-		display: grid;
-		grid-template-columns: min(100%, 10em);
+		display: flex;
+		flex-direction: column;
 	`;
 
 	const heading = document.createElement("h3");
@@ -1683,6 +1683,21 @@ function addCreateRoomForm()
 
 	form.appendChild(button);
 
+	Array.from(form.children).forEach(
+		(child) =>
+		{
+			if (child !== heading)
+			{
+				child.style =
+				`
+					width: min(100%, 10em);
+					box-sizing: border-box;
+					margin: 0 auto;
+				`;
+			}
+		}
+	);
+
 	interfaceBox.appendChild(form);
 }
 
@@ -1694,8 +1709,8 @@ function addJoinRoomForm()
 	form.addEventListener("submit", (event) => {joinRoom(event, form)});
 	form.style = 
 	`
-		display: grid;
-		grid-template-columns: min(100%, 10em);
+		display: flex;
+		flex-direction: column;
 	`;
 
 	const heading = document.createElement("h3");
@@ -1778,6 +1793,21 @@ function addJoinRoomForm()
 
 	form.appendChild(button);
 
+	Array.from(form.children).forEach(
+		(child) =>
+		{
+			if (child !== heading)
+			{
+				child.style =
+				`
+					width: min(100%, 10em);
+					box-sizing: border-box;
+					margin: 0 auto;
+				`;
+			}
+		}
+	);
+
 	interfaceBox.appendChild(form);
 }
 
@@ -1793,8 +1823,8 @@ function addLoadRoomForm(storedSaveNames)
 	form.addEventListener("submit", (event) => {loadRoom(event, form)});
 	form.style = 
 	`
-		display: grid;
-		grid-template-columns: min(100%, 10em);
+		display: flex;
+		flex-direction: column;
 	`;
 
 	const heading = document.createElement("h3");
@@ -1833,6 +1863,21 @@ function addLoadRoomForm(storedSaveNames)
 	);
 
 	form.appendChild(button);
+
+	Array.from(form.children).forEach(
+		(child) =>
+		{
+			if (child !== heading)
+			{
+				child.style =
+				`
+					width: min(100%, 10em);
+					box-sizing: border-box;
+					margin: 0 auto;
+				`;
+			}
+		}
+	);
 
 	interfaceBox.appendChild(form);
 }

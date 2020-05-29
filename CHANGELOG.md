@@ -13,6 +13,9 @@ Changelog
 - Save room button is now removed when player is removed from being a host.
 - Save room button is now added when a player is promoted to being a host.
 
+### Changed
+- Styling of form headers and buttons.
+
 [v1.1.0] - 2020-05-28
 ---------------------
 [GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v1.1.0)
