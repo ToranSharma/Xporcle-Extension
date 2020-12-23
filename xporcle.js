@@ -1136,19 +1136,29 @@ function updateSuggestionList(newSuggestion)
 	}
 	else
 	{
-		const row = suggestionsList.lastChild.cloneNode(true);
+		const row = suggestionsList.firstChild.cloneNode(true);
 		row.title = newSuggestion["long_title"];
 		row.textContent = `${newSuggestion["username"]}: ${newSuggestion["short_title"]}`;
 		row.addEventListener("click",
 			(event) =>
 			{
-				suggetions = suggestions.filter(item => item !== newSuggestion);
+				suggestions = suggestions.filter(item => item !== newSuggestion);
 				port.postMessage({type:"removeSuggestion", ...newSuggestion});
 				window.location = newSuggestion["url"];
 			}
 		);
-		suggestionsList.appendChild(row);
+		suggestionsList.insertBefore(row, suggestionsList.lastChild);
 	}
+}
+
+function clearSuggestionList()
+{
+	const suggestionsList = document.querySelector("#suggestionsList");
+	suggestionsList.remove();
+	const suggestionsHeader = document.querySelector("#suggestionsHeader");
+	suggestionsHeader.remove();
+	
+	suggestions.length = 0;
 }
 
 function setQuizStartProvention(prevent)
@@ -1525,6 +1535,12 @@ function addSuggestionsList()
 			suggestionsList.appendChild(row);
 		}
 	);
+	const clearButton = document.createElement("button");
+	clearButton.id = "clearSuggestions";
+	clearButton.addEventListener("click", clearSuggestionList);
+	clearButton.textContent = "Clear List";
+
+	suggestionsList.appendChild(clearButton);
 
 	interfaceBox.appendChild(suggestionsList);
 
