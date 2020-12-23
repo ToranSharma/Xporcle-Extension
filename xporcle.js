@@ -816,6 +816,7 @@ function onRoomConnect(existingScores)
 
 			const startButtons = document.querySelector(`#playPadding`);
 			quizStartObserver.observe(startButtons, {attributes: true});
+			quizStartObserver.observe(startButtons.parentNode, {childList: true});
 		}
 		else
 		{
@@ -1650,7 +1651,17 @@ function quizStarted(mutationList)
 	mutationList.forEach(
 		(mutation) =>
 		{
-			if (mutation.target.getAttribute("style") !== null)
+			if (
+				(
+					mutation.type === "childList"
+					&& mutation.removedNodes.length !== 0
+					&& Array.from(mutation.removedNodes).some(removed => removed.id === "playPadding")
+				)
+				||
+				(
+					mutation.type === "attributes" && mutation.target.getAttribute("style") !== null
+				)
+			)
 			{
 				// Quiz started
 				quizStartObserver.disconnect();

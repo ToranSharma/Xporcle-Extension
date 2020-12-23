@@ -3,6 +3,9 @@ Changelog
 
 [Unreleased]
 ------------
+### Fixed
+- Crossword type quiz start detection.
+
 ### Added
 - Auto inputting of room code from url's hash.
   - Auto joining of room if default username is set.
