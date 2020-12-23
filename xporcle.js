@@ -338,6 +338,9 @@ function resetInterface(errorElement, lastUsername, lastCode)
 		(element) => element.remove()
 	);
 
+	setQuizStartProvention(false);
+	document.querySelectorAll("#startCountdown").forEach(elm => elm.remove());
+
 	init().then(
 		() =>
 		{
