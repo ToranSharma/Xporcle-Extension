@@ -25,7 +25,7 @@ const quizFinishObserver = new MutationObserver(quizFinished);
 
 if (document.readyState === "complete" || document.readyState === "interactive")
 {
-	run()
+	run();
 }
 else
 {
@@ -119,7 +119,7 @@ async function init()
 					resolve(message);
 				}
 			);
-			port.postMessage({type: "connectionStatus", url: window.location.href});
+			port.postMessage({type: "connectionStatus", url: window.location.pathname});
 		}
 	);
 
@@ -162,6 +162,25 @@ async function init()
 			}
 		);
 		addLoadRoomForm(storedSaveNames);
+
+		// Respond to code appended to url
+		const xporcleCode = (window.location.hash.search(/#xporcle:/) === 0) ? window.location.hash.split(":")[1] : null;
+		if (xporcleCode !== null)
+		{
+			document.querySelector("#joinRoomCodeInput").value = xporcleCode;
+			window.location.hash = "";
+			const usernameInput = document.querySelector("#joinRoomUsernameInput");
+			if (usernameInput.value === "Enter Username")
+			{
+				usernameInput.focus();
+			}
+			else
+			{
+				// Default username must have been input so we can just connect.
+				usernameInput.parentNode.requestSubmit();
+			}
+		}
+
 	}
 }
 
@@ -319,6 +338,9 @@ function resetInterface(errorElement, lastUsername, lastCode)
 		(element) => element.remove()
 	);
 
+	setQuizStartProvention(false);
+	document.querySelectorAll("#startCountdown").forEach(elm => elm.remove());
+
 	init().then(
 		() =>
 		{
@@ -392,7 +414,7 @@ function processMessage(message)
 				host = false;
 				
 				// Remove host features
-				toggleQuizStartProvention(true);
+				setQuizStartProvention(true);
 
 				urls = {};
 				updateLeaderboardUrls();
@@ -423,13 +445,17 @@ function processMessage(message)
 			updateContextMenuHandling();
 			addSaveRoomButton();
 			break;
+		case "start_countdown":
+			// Start the countdown
+			startCountdown();
+			break;
 		case "start_quiz":
 			// Start the quiz!
 
 			if (!quizRunning)
 			{
 				// First remove the quiz start provention
-				toggleQuizStartProvention(false);
+				setQuizStartProvention(false);
 				document.querySelector(`#button-play`).click();
 			}
 			break;
@@ -469,9 +495,10 @@ function updateHostsInLeaderboard()
 		}
 	);
 }
-async function createRoom(event, form)
+async function createRoom(event)
 {
 	event.preventDefault();
+	const form = event.target;
 
 	username = form.querySelector(`input[type="text"]`).value.trim();
 	const button = form.querySelector(`input[type="submit"]`);
@@ -481,7 +508,7 @@ async function createRoom(event, form)
 	const message = {
 		type: "create_room",
 		username: username,
-		url: window.location.href
+		url: window.location.pathname
 	}
 	try
 	{
@@ -514,7 +541,7 @@ async function createRoom(event, form)
 
 	try
 	{
-		await navigator.clipboard.writeText(roomCode);
+		await navigator.clipboard.writeText(`https://sporcle.com/#xporcle:${roomCode}`);
 	}
 	catch (error)
 	{
@@ -544,9 +571,10 @@ async function createRoom(event, form)
 	onRoomConnect();
 }
 
-async function joinRoom(event, form)
+async function joinRoom(event)
 {
 	event.preventDefault();
+	const form = event.target.parentNode;
 
 	username = form.querySelector(`#joinRoomUsernameInput`).value.trim();
 	roomCode = form.querySelector(`#joinRoomCodeInput`).value.trim();
@@ -559,7 +587,7 @@ async function joinRoom(event, form)
 		type: "join_room",
 		username: username,
 		code: roomCode,
-		url: window.location.href
+		url: window.location.pathname
 	};
 
 	try
@@ -637,7 +665,7 @@ async function loadRoom(event, form)
 	const message = {
 		type: "load_room",
 		username: username,
-		url: window.location.href,
+		url: window.location.pathname,
 		saveName: saveName,
 		scores: saveData.scores
 	};
@@ -763,15 +791,41 @@ function onRoomConnect(existingScores)
 	// If on a quiz page, observe for the start of the quiz
 	if (onQuizPage)
 	{
-		// add observer for quiz starting
-		const startButtons = document.querySelector(`#playPadding`);
-		quizStartObserver.observe(startButtons, {attributes: true});
-	}
+		if (host)
+		{
+			// Add new button covering start button which will start the count down;
+			const playButton = document.querySelector("#button-play");
+			const startCountdownButton = playButton.cloneNode(true);
+			startCountdownButton.id = "startCountdown";
+			startCountdownButton.style =
+			`
+				transform: translateY(-100%);
+				margin-bottom: -100%;
+				background-color: green;
+			`;
+			startCountdownButton.firstChild.style["background"] = "unset";
+			startCountdownButton.addEventListener("click",
+				(event) =>
+				{
+					event.stopPropagation();
+					event.preventDefault();
+					startCountdown(true);
+					startCountdownButton.remove();
+					setTimeout(() => playButton.click(), 3000);
+				}, true
+			);
 
-	// If not a host and on a quiz, stop the user from starting any quizzes
-	if (!host && onQuizPage)
-	{
-		toggleQuizStartProvention(true);
+			playButton.parentNode.appendChild(startCountdownButton);
+
+			const startButtons = document.querySelector(`#playPadding`);
+			quizStartObserver.observe(startButtons, {attributes: true});
+			quizStartObserver.observe(startButtons.parentNode, {childList: true});
+		}
+		else
+		{
+			// If not a host and on a quiz, stop the user from starting any quizzes
+			setQuizStartProvention(true);
+		}
 	}
 
 	if (host)
@@ -1057,7 +1111,7 @@ function updateLeaderboardUrls()
 		(row) =>
 		{
 			const name = row.firstChild.textContent;
-			if (name !== username && (name in urls) && urls[name] !== window.location.href)
+			if (name !== username && (name in urls) && urls[name] !== window.location.pathname)
 			{
 				row.style.backgroundColor = "LightGrey";
 			}
@@ -1070,9 +1124,9 @@ function updateLeaderboardUrls()
 
 	if (onQuizPage)
 	{
-		const allPlayersOnSamePage = ! Object.entries(urls).some(entry => entry[1] !== window.location.href);
+		const allPlayersOnSamePage = ! Object.entries(urls).some(entry => entry[1] !== window.location.pathname);
 
-		toggleQuizStartProvention(allPlayersOnSamePage === false)
+		setQuizStartProvention(allPlayersOnSamePage === false)
 	}
 }
 
@@ -1085,22 +1139,32 @@ function updateSuggestionList(newSuggestion)
 	}
 	else
 	{
-		const row = suggestionsList.lastChild.cloneNode(true);
+		const row = suggestionsList.firstChild.cloneNode(true);
 		row.title = newSuggestion["long_title"];
 		row.textContent = `${newSuggestion["username"]}: ${newSuggestion["short_title"]}`;
 		row.addEventListener("click",
 			(event) =>
 			{
-				suggetions = suggestions.filter(item => item !== newSuggestion);
+				suggestions = suggestions.filter(item => item !== newSuggestion);
 				port.postMessage({type:"removeSuggestion", ...newSuggestion});
 				window.location = newSuggestion["url"];
 			}
 		);
-		suggestionsList.appendChild(row);
+		suggestionsList.insertBefore(row, suggestionsList.lastChild);
 	}
 }
 
-function toggleQuizStartProvention(prevent)
+function clearSuggestionList()
+{
+	const suggestionsList = document.querySelector("#suggestionsList");
+	suggestionsList.remove();
+	const suggestionsHeader = document.querySelector("#suggestionsHeader");
+	suggestionsHeader.remove();
+	
+	suggestions.length = 0;
+}
+
+function setQuizStartProvention(prevent)
 {
 	const playPadding = document.querySelector(`#playPadding`);
 	if (document.querySelector(`#button-play`) === null)
@@ -1119,9 +1183,59 @@ function toggleQuizStartProvention(prevent)
 	}
 
 }
+
 function stopQuizStart(event)
 {
 	event.stopPropagation();
+	event.preventDefault();
+}
+
+function startCountdown(send = false)
+{
+	const countdownContainer = document.createElement("div");
+	countdownContainer.id = "countdownContainer";
+	countdownContainer.style =
+	`
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(255,255,255,0.3);
+		z-index: 9999;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	`;
+	
+	const countElement = document.createElement("span");
+	countElement.style =
+	`
+		font-size: 20vw;
+	`;
+
+	let count = 3;
+	countElement.textContent = count--;
+	countdownContainer.appendChild(countElement);
+	document.body.appendChild(countdownContainer);
+	
+	if (send)
+	{
+		port.postMessage({type: "start_countdown"});
+	}
+	const countdownInterval = setInterval(
+		() =>
+		{
+			if (count === 0)
+			{
+				clearInterval(countdownInterval);
+				countdownContainer.remove();	
+			}
+			else
+			{
+				countElement.textContent = count--;
+			}
+		}, 1000);
 }
 
 function updateLiveScores(scores)
@@ -1424,6 +1538,12 @@ function addSuggestionsList()
 			suggestionsList.appendChild(row);
 		}
 	);
+	const clearButton = document.createElement("button");
+	clearButton.id = "clearSuggestions";
+	clearButton.addEventListener("click", clearSuggestionList);
+	clearButton.textContent = "Clear List";
+
+	suggestionsList.appendChild(clearButton);
 
 	interfaceBox.appendChild(suggestionsList);
 
@@ -1550,7 +1670,17 @@ function quizStarted(mutationList)
 	mutationList.forEach(
 		(mutation) =>
 		{
-			if (mutation.target.getAttribute("style") !== null)
+			if (
+				(
+					mutation.type === "childList"
+					&& mutation.removedNodes.length !== 0
+					&& Array.from(mutation.removedNodes).some(removed => removed.id === "playPadding")
+				)
+				||
+				(
+					mutation.type === "attributes" && mutation.target.getAttribute("style") !== null
+				)
+			)
 			{
 				// Quiz started
 				quizStartObserver.disconnect();
@@ -1628,7 +1758,7 @@ function addCreateRoomForm()
 	const form = document.createElement("form");
 	form.id = "createRoomForm";
 	form.autocomplete = "off";
-	form.addEventListener("submit", (event) => {createRoom(event, form)});
+	form.addEventListener("submit", createRoom);
 	form.style = 
 	`
 		display: flex;
@@ -1706,7 +1836,7 @@ function addJoinRoomForm()
 	const form = document.createElement("form");
 	form.id = "joinRoomForm";
 	form.autocomplete = "off";
-	form.addEventListener("submit", (event) => {joinRoom(event, form)});
+	form.addEventListener("submit", joinRoom);
 	form.style = 
 	`
 		display: flex;

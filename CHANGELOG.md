@@ -5,6 +5,22 @@ Changelog
 ------------
 -
 
+[v1.2.0] - 2020-12-23
+---------------------
+[GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v1.2.0)
+### Fixed
+- Crossword type quiz start detection.
+
+### Added
+- Auto inputting of room code from url's hash.
+  - Auto joining of room if default username is set.
+- Countdown before quiz is started.
+- Button clear to the suggestion list.
+
+### Changed
+- Link with room code in hash is put in clipboard rather than just the room
+code on creating a room.
+
 [v1.1.1] - 2020-05-29
 ---------------------
 [GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v1.1.1)
@@ -93,6 +109,7 @@ Changelog
 - Options page popup placeholder.
 
 [Unreleased]: https://github.com/ToranSharma/Xporcle-Extension/compare/master...develop
+[v1.2.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.1.1...v1.2.0
 [v1.1.1]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.1.0...v1.1.1
 [v1.1.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.0.1...v1.1.0
 [v1.0.1]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.0.0...v1.0.1
