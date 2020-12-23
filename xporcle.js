@@ -411,7 +411,7 @@ function processMessage(message)
 				host = false;
 				
 				// Remove host features
-				toggleQuizStartProvention(true);
+				setQuizStartProvention(true);
 
 				urls = {};
 				updateLeaderboardUrls();
@@ -442,13 +442,17 @@ function processMessage(message)
 			updateContextMenuHandling();
 			addSaveRoomButton();
 			break;
+		case "start_countdown":
+			// Start the countdown
+			startCountdown();
+			break;
 		case "start_quiz":
 			// Start the quiz!
 
 			if (!quizRunning)
 			{
 				// First remove the quiz start provention
-				toggleQuizStartProvention(false);
+				setQuizStartProvention(false);
 				document.querySelector(`#button-play`).click();
 			}
 			break;
@@ -784,15 +788,40 @@ function onRoomConnect(existingScores)
 	// If on a quiz page, observe for the start of the quiz
 	if (onQuizPage)
 	{
-		// add observer for quiz starting
-		const startButtons = document.querySelector(`#playPadding`);
-		quizStartObserver.observe(startButtons, {attributes: true});
-	}
+		if (host)
+		{
+			// Add new button covering start button which will start the count down;
+			const playButton = document.querySelector("#button-play");
+			const startCountdownButton = playButton.cloneNode(true);
+			startCountdownButton.id = "startCountdown";
+			startCountdownButton.style =
+			`
+				transform: translateY(-100%);
+				margin-bottom: -100%;
+				background-color: green;
+			`;
+			startCountdownButton.firstChild.style["background"] = "unset";
+			startCountdownButton.addEventListener("click",
+				(event) =>
+				{
+					event.stopPropagation();
+					event.preventDefault();
+					startCountdown(true);
+					startCountdownButton.remove();
+					setTimeout(() => playButton.click(), 3000);
+				}, true
+			);
 
-	// If not a host and on a quiz, stop the user from starting any quizzes
-	if (!host && onQuizPage)
-	{
-		toggleQuizStartProvention(true);
+			playButton.parentNode.appendChild(startCountdownButton);
+
+			const startButtons = document.querySelector(`#playPadding`);
+			quizStartObserver.observe(startButtons, {attributes: true});
+		}
+		else
+		{
+			// If not a host and on a quiz, stop the user from starting any quizzes
+			setQuizStartProvention(true);
+		}
 	}
 
 	if (host)
@@ -1093,7 +1122,7 @@ function updateLeaderboardUrls()
 	{
 		const allPlayersOnSamePage = ! Object.entries(urls).some(entry => entry[1] !== window.location.pathname);
 
-		toggleQuizStartProvention(allPlayersOnSamePage === false)
+		setQuizStartProvention(allPlayersOnSamePage === false)
 	}
 }
 
@@ -1121,7 +1150,7 @@ function updateSuggestionList(newSuggestion)
 	}
 }
 
-function toggleQuizStartProvention(prevent)
+function setQuizStartProvention(prevent)
 {
 	const playPadding = document.querySelector(`#playPadding`);
 	if (document.querySelector(`#button-play`) === null)
@@ -1140,9 +1169,59 @@ function toggleQuizStartProvention(prevent)
 	}
 
 }
+
 function stopQuizStart(event)
 {
 	event.stopPropagation();
+	event.preventDefault();
+}
+
+function startCountdown(send = false)
+{
+	const countdownContainer = document.createElement("div");
+	countdownContainer.id = "countdownContainer";
+	countdownContainer.style =
+	`
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(255,255,255,0.3);
+		z-index: 9999;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	`;
+	
+	const countElement = document.createElement("span");
+	countElement.style =
+	`
+		font-size: 20vw;
+	`;
+
+	let count = 3;
+	countElement.textContent = count--;
+	countdownContainer.appendChild(countElement);
+	document.body.appendChild(countdownContainer);
+	
+	if (send)
+	{
+		port.postMessage({type: "start_countdown"});
+	}
+	const countdownInterval = setInterval(
+		() =>
+		{
+			if (count === 0)
+			{
+				clearInterval(countdownInterval);
+				countdownContainer.remove();	
+			}
+			else
+			{
+				countElement.textContent = count--;
+			}
+		}, 1000);
 }
 
 function updateLiveScores(scores)

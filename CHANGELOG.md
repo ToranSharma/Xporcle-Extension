@@ -6,6 +6,7 @@ Changelog
 ### Added
 - Auto inputting of room code from url's hash.
   - Auto joining of room if default username is set.
+- Countdown before quiz is started.
 
 ### Changed
 - Link with room code in hash is put in clipboard rather than just the room
