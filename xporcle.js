@@ -25,7 +25,7 @@ const quizFinishObserver = new MutationObserver(quizFinished);
 
 if (document.readyState === "complete" || document.readyState === "interactive")
 {
-	run()
+	run();
 }
 else
 {
@@ -162,6 +162,25 @@ async function init()
 			}
 		);
 		addLoadRoomForm(storedSaveNames);
+
+		// Respond to code appended to url
+		const xporcleCode = (window.location.hash.search(/#xporcle:/) === 0) ? window.location.hash.split(":")[1] : null;
+		if (xporcleCode !== null)
+		{
+			document.querySelector("#joinRoomCodeInput").value = xporcleCode;
+			window.location.hash = "";
+			const usernameInput = document.querySelector("#joinRoomUsernameInput");
+			if (usernameInput.value === "Enter Username")
+			{
+				usernameInput.focus();
+			}
+			else
+			{
+				// Default username must have been input so we can just connect.
+				usernameInput.parentNode.requestSubmit();
+			}
+		}
+
 	}
 }
 
@@ -469,9 +488,10 @@ function updateHostsInLeaderboard()
 		}
 	);
 }
-async function createRoom(event, form)
+async function createRoom(event)
 {
 	event.preventDefault();
+	const form = event.target;
 
 	username = form.querySelector(`input[type="text"]`).value.trim();
 	const button = form.querySelector(`input[type="submit"]`);
@@ -514,7 +534,7 @@ async function createRoom(event, form)
 
 	try
 	{
-		await navigator.clipboard.writeText(roomCode);
+		await navigator.clipboard.writeText(`https://sporcle.com/#xporcle:${roomCode}`);
 	}
 	catch (error)
 	{
@@ -544,9 +564,10 @@ async function createRoom(event, form)
 	onRoomConnect();
 }
 
-async function joinRoom(event, form)
+async function joinRoom(event)
 {
 	event.preventDefault();
+	const form = event.target.parentNode;
 
 	username = form.querySelector(`#joinRoomUsernameInput`).value.trim();
 	roomCode = form.querySelector(`#joinRoomCodeInput`).value.trim();
@@ -1628,7 +1649,7 @@ function addCreateRoomForm()
 	const form = document.createElement("form");
 	form.id = "createRoomForm";
 	form.autocomplete = "off";
-	form.addEventListener("submit", (event) => {createRoom(event, form)});
+	form.addEventListener("submit", createRoom);
 	form.style = 
 	`
 		display: flex;
@@ -1706,7 +1727,7 @@ function addJoinRoomForm()
 	const form = document.createElement("form");
 	form.id = "joinRoomForm";
 	form.autocomplete = "off";
-	form.addEventListener("submit", (event) => {joinRoom(event, form)});
+	form.addEventListener("submit", joinRoom);
 	form.style = 
 	`
 		display: flex;
