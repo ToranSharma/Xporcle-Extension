@@ -119,7 +119,7 @@ async function init()
 					resolve(message);
 				}
 			);
-			port.postMessage({type: "connectionStatus", url: window.location.href});
+			port.postMessage({type: "connectionStatus", url: window.location.pathname});
 		}
 	);
 
@@ -501,7 +501,7 @@ async function createRoom(event)
 	const message = {
 		type: "create_room",
 		username: username,
-		url: window.location.href
+		url: window.location.pathname
 	}
 	try
 	{
@@ -580,7 +580,7 @@ async function joinRoom(event)
 		type: "join_room",
 		username: username,
 		code: roomCode,
-		url: window.location.href
+		url: window.location.pathname
 	};
 
 	try
@@ -658,7 +658,7 @@ async function loadRoom(event, form)
 	const message = {
 		type: "load_room",
 		username: username,
-		url: window.location.href,
+		url: window.location.pathname,
 		saveName: saveName,
 		scores: saveData.scores
 	};
@@ -1078,7 +1078,7 @@ function updateLeaderboardUrls()
 		(row) =>
 		{
 			const name = row.firstChild.textContent;
-			if (name !== username && (name in urls) && urls[name] !== window.location.href)
+			if (name !== username && (name in urls) && urls[name] !== window.location.pathname)
 			{
 				row.style.backgroundColor = "LightGrey";
 			}
@@ -1091,7 +1091,7 @@ function updateLeaderboardUrls()
 
 	if (onQuizPage)
 	{
-		const allPlayersOnSamePage = ! Object.entries(urls).some(entry => entry[1] !== window.location.href);
+		const allPlayersOnSamePage = ! Object.entries(urls).some(entry => entry[1] !== window.location.pathname);
 
 		toggleQuizStartProvention(allPlayersOnSamePage === false)
 	}
