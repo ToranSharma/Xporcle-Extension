@@ -817,15 +817,16 @@ function onRoomConnect(existingScores)
 
 			playButton.parentNode.appendChild(startCountdownButton);
 
-			const startButtons = document.querySelector(`#playPadding`);
-			quizStartObserver.observe(startButtons, {attributes: true});
-			quizStartObserver.observe(startButtons.parentNode, {childList: true});
 		}
 		else
 		{
 			// If not a host and on a quiz, stop the user from starting any quizzes
 			setQuizStartProvention(true);
 		}
+
+		const startButtons = document.querySelector(`#playPadding`);
+		quizStartObserver.observe(startButtons, {attributes: true});
+		quizStartObserver.observe(startButtons.parentNode, {childList: true}); // Cross word style start button.
 	}
 
 	if (host)
