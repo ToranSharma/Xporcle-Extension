@@ -1170,6 +1170,13 @@ function clearSuggestionList()
 	const suggestionsHeader = document.querySelector("#suggestionsHeader");
 	suggestionsHeader.remove();
 	
+	suggestions.forEach(
+		(suggestion) =>
+		{
+			port.postMessage({type: "removeSuggestion", ...suggestion});
+		}
+	);
+
 	suggestions.length = 0;
 }
 

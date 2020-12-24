@@ -11,6 +11,7 @@ Changelog
 ### Fixed
 - Start detection for non hosts.
 - Start countdown button styling.
+- Suggestion clearing to stay after changing page.
 
 [v1.2.0] - 2020-12-23
 ---------------------
