@@ -10,6 +10,7 @@ Changelog
 [GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v1.2.1)
 ### Fixed
 - Start detection for non hosts.
+- Start countdown button styling.
 
 [v1.2.0] - 2020-12-23
 ---------------------
