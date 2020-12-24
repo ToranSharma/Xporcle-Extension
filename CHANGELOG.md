@@ -5,6 +5,14 @@ Changelog
 ------------
 -
 
+[v1.2.1] - 2020-12-24
+---------------------
+[GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v1.2.1)
+### Fixed
+- Start detection for non hosts.
+- Start countdown button styling.
+- Suggestion clearing to stay after changing page.
+
 [v1.2.0] - 2020-12-23
 ---------------------
 [GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v1.2.0)
@@ -109,6 +117,7 @@ code on creating a room.
 - Options page popup placeholder.
 
 [Unreleased]: https://github.com/ToranSharma/Xporcle-Extension/compare/master...develop
+[v1.2.1]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.2.0...v1.2.1
 [v1.2.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.1.1...v1.2.0
 [v1.1.1]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.1.0...v1.1.1
 [v1.1.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.0.1...v1.1.0
