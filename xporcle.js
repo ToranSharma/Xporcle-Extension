@@ -795,12 +795,19 @@ function onRoomConnect(existingScores)
 		{
 			// Add new button covering start button which will start the count down;
 			const playButton = document.querySelector("#button-play");
+
+			const buttonContainer = document.createElement("div");
+			buttonContainer.style =
+			`
+				height: 0;
+				overflow: visible;
+			`;
 			const startCountdownButton = playButton.cloneNode(true);
 			startCountdownButton.id = "startCountdown";
 			startCountdownButton.style =
 			`
+				position: absolute;
 				transform: translateY(-100%);
-				margin-bottom: -100%;
 				background-color: green;
 			`;
 			startCountdownButton.firstChild.style["background"] = "unset";
@@ -815,17 +822,19 @@ function onRoomConnect(existingScores)
 				}, true
 			);
 
-			playButton.parentNode.appendChild(startCountdownButton);
+			buttonContainer.appendChild(startCountdownButton);
+			playButton.parentNode.appendChild(buttonContainer);
 
-			const startButtons = document.querySelector(`#playPadding`);
-			quizStartObserver.observe(startButtons, {attributes: true});
-			quizStartObserver.observe(startButtons.parentNode, {childList: true});
 		}
 		else
 		{
 			// If not a host and on a quiz, stop the user from starting any quizzes
 			setQuizStartProvention(true);
 		}
+
+		const startButtons = document.querySelector(`#playPadding`);
+		quizStartObserver.observe(startButtons, {attributes: true});
+		quizStartObserver.observe(startButtons.parentNode, {childList: true}); // Crossword style start button.
 	}
 
 	if (host)
@@ -1161,6 +1170,13 @@ function clearSuggestionList()
 	const suggestionsHeader = document.querySelector("#suggestionsHeader");
 	suggestionsHeader.remove();
 	
+	suggestions.forEach(
+		(suggestion) =>
+		{
+			port.postMessage({type: "removeSuggestion", ...suggestion});
+		}
+	);
+
 	suggestions.length = 0;
 }
 
