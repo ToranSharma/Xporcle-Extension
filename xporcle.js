@@ -373,7 +373,7 @@ function processMessage(message)
 	switch (messageType)
 	{
 		case "users_update":
-			hosts = Object.entries(message["users"]).filter(entry => entry[0].host === true).map(entry => entry[0]);
+			hosts = Object.entries(message["users"]).filter(entry => entry[1].host === true).map(entry => entry[0]);
 		case "scores_update":
 			updateLeaderboard(message["scores"]);
 			break;
@@ -528,8 +528,12 @@ async function createRoom(event)
 					port.onMessage.removeListener(connectListener);
 					if (message.type === "create_room")
 					{
-						roomCode = message.room_code;
+						host = true;
+						hosts = [username];
+						roomCode = message["room_code"];
+
 						port.postMessage({type: "url_update", url: window.location.pathname});
+
 						// Set up message handing
 						port.onMessage.addListener(processMessage);
 
@@ -575,9 +579,6 @@ async function createRoom(event)
 		(form) => form.remove()
 	);
 
-	host = true;
-	hosts = [username];
-
 	onRoomConnect();
 }
 
@@ -615,6 +616,7 @@ async function joinRoom(event)
 						{
 							hosts = message["hosts"];
 							port.postMessage({type: "url_update", url: window.location.pathname})
+
 							// Set up message handing
 							port.onMessage.addListener(processMessage);
 
@@ -1059,7 +1061,6 @@ function updateLeaderboard(scores)
 		leaderboard.appendChild(row);
 	}
 
-	updateContextMenuHandling();
 
 	// Now sort the by score, falling back to alphabetically
 	// First restart scores back to it's unmodified state
@@ -1113,6 +1114,8 @@ function updateLeaderboard(scores)
 			leaderboard.appendChild(row);
 		}
 	);
+
+	updateContextMenuHandling();
 }
 
 function updateContextMenuHandling()
@@ -1123,10 +1126,12 @@ function updateContextMenuHandling()
 			if (host && !hosts.includes(row.firstChild.textContent))
 			{
 				row.addEventListener("contextmenu", cmEventHandle);
+				row.style.cursor = "context-menu";
 			}
 			else
 			{
 				row.removeEventListener("contextmenu", cmEventHandle);
+				row.style.cursor = "default";
 			}
 		}
 	);
@@ -1415,6 +1420,7 @@ function addLeaderboard(scores)
 		`
 			display: grid;
 			grid-template-columns: fit-content(calc(60% - 3em)) 1fr 20% 20%;
+			cusor: default;
 		`;
 
 		// Username
@@ -1454,7 +1460,6 @@ function addLeaderboard(scores)
 		leaderboard.appendChild(row);
 	}
 
-	updateContextMenuHandling();
 
 	const leaderboardHeader = document.createElement("h2");
 	leaderboardHeader.id = "leaderboardHeader";
@@ -1463,6 +1468,8 @@ function addLeaderboard(scores)
 	interfaceBox.appendChild(leaderboardHeader);
 
 	interfaceBox.appendChild(leaderboard);
+	updateContextMenuHandling();
+
 	return leaderboard;
 }
 
@@ -1673,6 +1680,19 @@ function displayContextMenu(event)
 		(event) =>
 		{
 			port.postMessage({type: "change_host", username: targetUsername});
+			removeContextMenu();
+		}
+	);
+	menu.appendChild(menuItem);
+
+	menuItem = menuItem.cloneNode(true);
+	menuItem.textContent = `Remove ${targetUsername} from room`;
+	menuItem.addEventListener("mouseover", mOver);
+	menuItem.addEventListener("mouseout", mOut);
+	menuItem.addEventListener("click",
+		(event) =>
+		{
+			port.postMessage({type: "remove_from_room", username: targetUsername});
 			removeContextMenu();
 		}
 	);
