@@ -3,12 +3,16 @@ Changelog
 
 [Unreleased]
 ------------
+-
+
+[v2.0.0] - 2021-03-22
+---------------------
+[GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v2.0.0)
 ### Added
 - Remove player option in leaderboard right click menu.
 
 ### Changed
 - Updated server communications to work with new Quart-WebSocketRooms based API.
-
 
 [v1.2.1] - 2020-12-24
 ---------------------
@@ -122,6 +126,7 @@ Changelog
 - Options page popup placeholder.
 
 [Unreleased]: https://github.com/ToranSharma/Xporcle-Extension/compare/master...develop
+[v2.0.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.2.1...v2.0.0
 [v1.2.1]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.2.0...v1.2.1
 [v1.2.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.1.1...v1.2.0
 [v1.1.1]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.1.0...v1.1.1
