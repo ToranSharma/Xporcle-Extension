@@ -3,7 +3,12 @@ Changelog
 
 [Unreleased]
 ------------
--
+### Added
+- Remove player option in leaderboard right click menu.
+
+### Changed
+- Updated server communications to work with new Quart-WebSocketRooms based API.
+
 
 [v1.2.1] - 2020-12-24
 ---------------------
@@ -27,7 +32,7 @@ Changelog
 
 ### Changed
 - Link with room code in hash is put in clipboard rather than just the room
-code on creating a room.
+  code on creating a room.
 
 [v1.1.1] - 2020-05-29
 ---------------------
@@ -61,7 +66,7 @@ code on creating a room.
 ### Added
 - Options to the options page and page action popout window.
   - Option to auto fill a custom default username in the create and join room
-  forms.
+    forms.
   - Option to blur out the room code, maybe useful if streaming a private room.
   - Options script to handle the changing and saving of the options.
   - Options page stylesheet.
