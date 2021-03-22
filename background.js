@@ -138,11 +138,11 @@ function startConnection(initialMessage)
 		roomCode = initialMessage["code"];
 	}
 	
-	if (initialMessage["saveName"] !== undefined)
+	if (initialMessage["type"] == "load_room")
 	{
 		// We are loading from a save.
 		saveName = initialMessage["saveName"];
-		delete initialMessage["saveName"]; // This doesn't need to be send to the sever.
+		delete initialMessage["saveName"]; // This doesn't need to be sent to the sever.
 		scores = initialMessage["scores"];
 	}
 
@@ -172,7 +172,10 @@ function forwardMessage(event)
 
 	messageType = message["type"];
 
-	if (messageType === "new_room_code")
+	if (
+		messageType === "create_room"
+		|| messageType == "load_room"
+	)
 	{
 		host = true;
 		hosts = [username];
@@ -192,7 +195,14 @@ function forwardMessage(event)
 	}
 	else if (messageType === "hosts_update")
 	{
-		hosts = message["hosts"];
+		if (message["added"] !== undefined)
+		{
+			hosts.push(message["added"]);
+		}
+		else
+		{
+			hosts = hosts.filter(username => username !== message["removed"]);
+		}
 		if (!hosts.includes(username))
 		{
 			host = false;
@@ -203,8 +213,12 @@ function forwardMessage(event)
 	else if (messageType === "host_promotion")
 	{
 		host = true;
+		urls = message["urls"];
 	}
-	else if (messageType === "scores_update")
+	else if (
+		messageType === "users_update"
+		|| messageType === "scores_update"
+	)
 	{
 		scores = message["scores"];
 	}

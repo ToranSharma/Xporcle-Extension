@@ -72,7 +72,7 @@ function run()
 							{
 								storedSaveNames = Object.keys(data.saves);
 							}
-							
+
 							loadRoomForm.remove();
 							addLoadRoomForm(storedSaveNames);
 						}
@@ -133,6 +133,7 @@ async function init()
 		hosts = statusResponse["hosts"];
 		suggestions = statusResponse["suggestions"];
 		saveName = statusResponse["saveName"];
+
 
 		onRoomConnect(statusResponse["scores"]);
 	}
@@ -371,6 +372,8 @@ function processMessage(message)
 
 	switch (messageType)
 	{
+		case "users_update":
+			hosts = Object.entries(message["users"]).filter(entry => entry[1].host === true).map(entry => entry[0]);
 		case "scores_update":
 			updateLeaderboard(message["scores"]);
 			break;
@@ -395,19 +398,23 @@ function processMessage(message)
 				delete hosts[removedUser];
 			}
 			break;
-		case "save_data":
+		case "save_room":
 			if (confirmSaveDataRecieved !== null)
 			{
-				saveData =
-				{
-					scores: message["data"],
-					me: username
-				}
+				saveData = message["save_data"];
+				saveData["me"] = username;
 				confirmSaveDataRecieved();
 			}
 			break;
 		case "hosts_update":
-			hosts = message["hosts"];
+			if (message["added"] !== undefined)
+			{
+				hosts.push(message["added"]);
+			}
+			else
+			{
+				hosts = hosts.filter(username => username !== message["removed"]);
+			}
 			if (host && !hosts.includes(username))
 			{
 				// Not a host anymore
@@ -508,7 +515,6 @@ async function createRoom(event)
 	const message = {
 		type: "create_room",
 		username: username,
-		url: window.location.pathname
 	}
 	try
 	{
@@ -520,9 +526,17 @@ async function createRoom(event)
 				connectListener = (message) =>
 				{
 					port.onMessage.removeListener(connectListener);
-					if (message.type === "new_room_code")
+					if (message.type === "create_room")
 					{
-						roomCode = message.room_code;
+						host = true;
+						hosts = [username];
+						roomCode = message["room_code"];
+
+						port.postMessage({type: "url_update", url: window.location.pathname});
+
+						// Set up message handing
+						port.onMessage.addListener(processMessage);
+
 						resolve();
 					}
 					else
@@ -565,9 +579,6 @@ async function createRoom(event)
 		(form) => form.remove()
 	);
 
-	host = true;
-	hosts = [username];
-
 	onRoomConnect();
 }
 
@@ -587,7 +598,6 @@ async function joinRoom(event)
 		type: "join_room",
 		username: username,
 		code: roomCode,
-		url: window.location.pathname
 	};
 
 	try
@@ -605,6 +615,11 @@ async function joinRoom(event)
 						if (message.success)
 						{
 							hosts = message["hosts"];
+							port.postMessage({type: "url_update", url: window.location.pathname})
+
+							// Set up message handing
+							port.onMessage.addListener(processMessage);
+
 							resolve();
 						}
 						else
@@ -667,7 +682,9 @@ async function loadRoom(event, form)
 		username: username,
 		url: window.location.pathname,
 		saveName: saveName,
-		scores: saveData.scores
+		save_data: {
+			scores: saveData.scores
+		}
 	};
 
 	try
@@ -680,11 +697,15 @@ async function loadRoom(event, form)
 				connectListener = (message) =>
 				{
 					port.onMessage.removeListener(connectListener);
-					if (message.type === "new_room_code")
+					if (message.type === "load_room")
 					{
 						host = true;
 						hosts = [username];
 						roomCode = message["room_code"];
+
+						// Set up message handing
+						port.onMessage.addListener(processMessage);
+
 						resolve();
 					}
 					else
@@ -716,7 +737,7 @@ async function loadRoom(event, form)
 
 	try
 	{
-		await navigator.clipboard.writeText(roomCode);
+		await navigator.clipboard.writeText(`https://sporcle.com/#xporcle:${roomCode}`);
 	}
 	catch (error)
 	{
@@ -727,8 +748,11 @@ async function loadRoom(event, form)
 }
 function onRoomConnect(existingScores)
 {
-	// Set up message handing
-	port.onMessage.addListener(processMessage);
+	// Set up message handing if not done already.
+	if (!port.onMessage.hasListener(processMessage))
+	{
+		port.onMessage.addListener(processMessage);
+	}
 
 	// Clear the interface box of the forms
 	interfaceBox.querySelectorAll(`form`).forEach(
@@ -746,7 +770,7 @@ function onRoomConnect(existingScores)
 	{
 		roomCodeHeader.lastChild.style.filter = "blur(0.4em)";
 	}
-	interfaceBox.appendChild(roomCodeHeader);
+	interfaceBox.insertBefore(roomCodeHeader, interfaceBox.firstElementChild);
 
 	// If the user is a host and is on a quiz,
 	// add a button to send the quiz to the rest of the room
@@ -771,7 +795,7 @@ function onRoomConnect(existingScores)
 		scores[username] = {score: 0, wins: 0};
 	}
 
-	updateLeaderboard(scores);
+	addLeaderboard(scores);
 
 	// Add a button to leave the room
 	interfaceBox.appendChild(document.createElement("button"));
@@ -1002,7 +1026,10 @@ function updateLeaderboard(scores)
 	const scoresCopy = JSON.parse(JSON.stringify(scores));
 	let leaderboard = interfaceBox.querySelector(`#leaderboard`);
 	if (leaderboard === null)
-		leaderboard = addLeaderboard(scores);
+	{
+		addLeaderboard(scores);
+		return null;
+	}
 
 	const rows = leaderboard.querySelectorAll(`li`);
 	rows.forEach(
@@ -1034,7 +1061,6 @@ function updateLeaderboard(scores)
 		leaderboard.appendChild(row);
 	}
 
-	updateContextMenuHandling();
 
 	// Now sort the by score, falling back to alphabetically
 	// First restart scores back to it's unmodified state
@@ -1088,6 +1114,8 @@ function updateLeaderboard(scores)
 			leaderboard.appendChild(row);
 		}
 	);
+
+	updateContextMenuHandling();
 }
 
 function updateContextMenuHandling()
@@ -1098,10 +1126,12 @@ function updateContextMenuHandling()
 			if (host && !hosts.includes(row.firstChild.textContent))
 			{
 				row.addEventListener("contextmenu", cmEventHandle);
+				row.style.cursor = "context-menu";
 			}
 			else
 			{
 				row.removeEventListener("contextmenu", cmEventHandle);
+				row.style.cursor = "default";
 			}
 		}
 	);
@@ -1352,7 +1382,11 @@ function updateLiveScores(scores)
 
 function addLeaderboard(scores)
 {
-	const leaderboard = document.createElement("ol");
+	let leaderboard = interfaceBox.querySelector(`#leaderboard`);
+	if (leaderboard !== null)
+		return false;
+
+	leaderboard = document.createElement("ol");
 	leaderboard.id = "leaderboard";
 	leaderboard.style =
 	`
@@ -1386,6 +1420,7 @@ function addLeaderboard(scores)
 		`
 			display: grid;
 			grid-template-columns: fit-content(calc(60% - 3em)) 1fr 20% 20%;
+			cusor: default;
 		`;
 
 		// Username
@@ -1425,7 +1460,6 @@ function addLeaderboard(scores)
 		leaderboard.appendChild(row);
 	}
 
-	updateContextMenuHandling();
 
 	const leaderboardHeader = document.createElement("h2");
 	leaderboardHeader.id = "leaderboardHeader";
@@ -1434,6 +1468,8 @@ function addLeaderboard(scores)
 	interfaceBox.appendChild(leaderboardHeader);
 
 	interfaceBox.appendChild(leaderboard);
+	updateContextMenuHandling();
+
 	return leaderboard;
 }
 
@@ -1644,6 +1680,19 @@ function displayContextMenu(event)
 		(event) =>
 		{
 			port.postMessage({type: "change_host", username: targetUsername});
+			removeContextMenu();
+		}
+	);
+	menu.appendChild(menuItem);
+
+	menuItem = menuItem.cloneNode(true);
+	menuItem.textContent = `Remove ${targetUsername} from room`;
+	menuItem.addEventListener("mouseover", mOver);
+	menuItem.addEventListener("mouseout", mOut);
+	menuItem.addEventListener("click",
+		(event) =>
+		{
+			port.postMessage({type: "remove_from_room", username: targetUsername});
 			removeContextMenu();
 		}
 	);
