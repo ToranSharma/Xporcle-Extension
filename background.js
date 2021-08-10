@@ -37,6 +37,7 @@ let urls = {};
 let hosts = [];
 let suggestions = [];
 let playing = null;
+let pollData = {};
 let saveName = null;
 
 chrome.runtime.onConnect.addListener(
@@ -64,6 +65,7 @@ chrome.runtime.onConnect.addListener(
 									urls: urls,
 									hosts: hosts,
 									suggestions: suggestions,
+									poll_data: pollData,
 									saveName: saveName,
 								}
 							);
@@ -105,6 +107,14 @@ chrome.runtime.onConnect.addListener(
 						if (message.type === "live_scores_update")
 						{
 							playing = !message["finished"]
+						}
+						else if (message.type === "pollDataUpdate")
+						{
+							pollData = message["poll_data"];
+						}
+						else if (message.type === "pollStart")
+						{
+							pollData = {};
 						}
 					}
 				}
@@ -208,6 +218,7 @@ function forwardMessage(event)
 			host = false;
 			urls = {};
 			suggestions = [];
+			pollData = {};
 		}
 	}
 	else if (messageType === "host_promotion")
@@ -290,5 +301,6 @@ function reset()
 	urls = {};
 	hosts = [];
 	playing = null;
+	pollData = {};
 	saveName = null;
 }

@@ -134,8 +134,8 @@ async function init()
 		suggestions = statusResponse["suggestions"];
 		saveName = statusResponse["saveName"];
 
-
-		onRoomConnect(statusResponse["scores"]);
+		const pollData =  Object.keys(statusResponse["poll_data"]).length !== 0 ? statusResponse["poll_data"] : undefined;
+		onRoomConnect(statusResponse["scores"], pollData);
 	}
 	else
 	{
@@ -342,6 +342,7 @@ function resetInterface(errorElement, lastUsername, lastCode)
 	setQuizStartProvention(false);
 	document.querySelectorAll("#startCountdown").forEach(elm => elm.remove());
 
+	document.querySelector("#pollBox")?.remove();
 	init().then(
 		() =>
 		{
@@ -427,7 +428,7 @@ function processMessage(message)
 				updateLeaderboardUrls();
 
 				suggestions = [];
-				document.querySelectorAll(`#changeQuizButton, #suggestionsHeader, #suggestionsList, #saveButton`).forEach(element => element.remove());
+				document.querySelectorAll(`#changeQuizButton, #suggestionsHeader, #suggestionsList, #saveButton, #createPollButton`).forEach(element => element.remove());
 
 				// Add non host features
 				if (onQuizPage)
@@ -445,6 +446,7 @@ function processMessage(message)
 			{
 				document.querySelector(`#suggestQuizButton`).remove();
 				addChangeQuizButton();
+				addCreatePollButton();
 			}
 			urls = message["urls"];
 			updateHostsInLeaderboard();
@@ -746,7 +748,7 @@ async function loadRoom(event, form)
 
 	onRoomConnect();
 }
-function onRoomConnect(existingScores)
+function onRoomConnect(existingScores, existingPollData)
 {
 	// Set up message handing if not done already.
 	if (!port.onMessage.hasListener(processMessage))
@@ -806,10 +808,18 @@ function onRoomConnect(existingScores)
 		}
 	);
 
-	// Add a button to save the current room state
+	// Add a buttons for host only features
 	if (host)
 	{
 		addSaveRoomButton();
+		if (existingPollData)
+		{
+			addCreatePollBox(existingPollData);
+		}
+		else
+		{
+			addCreatePollButton();
+		}
 	}
 
 	// If on a quiz page, observe for the start of the quiz
@@ -921,6 +931,207 @@ function addSuggestionQuizButton()
 	);
 	// The button goes just after the room code header, where the changeQuizButton would be for hosts
 	interfaceBox.insertBefore(suggestQuizButton, interfaceBox.querySelector(`#roomCodeHeader`).nextElementSibling);
+}
+
+function addCreatePollButton()
+{
+	const createPollButton = document.createElement("button");
+	createPollButton.id = "createPollButton";
+	createPollButton.textContent = "Create Poll for Next Quiz";
+	createPollButton.addEventListener("click",
+		(event) =>
+		{
+			addCreatePollBox();
+			createPollButton.remove();
+		}
+	);
+
+	interfaceBox.append(createPollButton);
+}
+
+function addCreatePollBox(pollData = {time: 30, entries: []})
+{
+	const pollBox = document.createElement("div");
+	pollBox.id = "pollBox";
+	pollBox.style =
+	`
+		width: calc(((100vw - 960px) / 2 - 10px));
+		padding: 0.5em;
+		box-sizing: border-box;
+		max-width: 400px;
+		list-style: none;
+		border-width: 1px;
+		border-style: solid;
+		border-color: darkgrey;
+		border-radius: 0.25em;
+		background-color: white;
+
+		display: grid;
+		row-gap: 1em;
+		grid-template-columns: 100%;
+	`;
+	
+	const header = document.createElement("h2");
+	header.textContent = "Next Quiz Poll";
+	pollBox.append(header);
+
+	if (onQuizPage)
+	{
+		// Get info about quiz from page
+		const currentQuiz =
+		{
+			url: window.location.href,
+			short_title: document.querySelector(`title`).textContent,
+			long_title: document.querySelector("#gameMeta>h2").textContent
+		};
+
+		const addCurrentQuizToPollButton = document.createElement("button");
+		addCurrentQuizToPollButton.textContent = "Add Quiz to Poll";
+		addCurrentQuizToPollButton.id = "addCurrentQuizToPoll";
+		addCurrentQuizToPollButton.addEventListener("click",
+			(event) =>
+			{
+				if (!pollData.entries.some(existingQuiz => existingQuiz.url === currentQuiz.url))
+				{
+					pollData.entries.push(currentQuiz);
+					const newEntryListItem = document.createElement("li");
+					newEntryListItem.style =
+					`
+						display: grid;
+						grid-template-columns: 1fr 1em;
+						align-items: center;
+					`;
+
+					newEntryListItem.id = currentQuiz.short_title;
+					newEntryListItem.textContent = currentQuiz.short_title;
+					removeEntryButton = document.createElement("div");
+					removeEntryButton.style =
+					`
+						background-color: red;
+						color: white;
+						border-radius: 50%;
+						display: flex;
+						justify-content: center;
+						align-content: center;
+						cursor: pointer;
+						height: 1em;
+						width: 1em;
+					`;
+					removeEntryButton.textContent = "×";
+					removeEntryButton.addEventListener("click",
+						(event) =>
+						{
+							newEntryListItem.remove();
+							pollData.entries = pollData.entries.filter(existingEntry => existingEntry.url !== currentQuiz.url);
+							port.postMessage({type:"pollDataUpdate", poll_data: pollData});
+						}
+					);
+					newEntryListItem.append(removeEntryButton);
+
+					pollBox.querySelector("#pollEntriesList").append(newEntryListItem);
+
+					// Send updated data
+					port.postMessage({type:"pollDataUpdate", poll_data: pollData});
+				}
+			}
+		);
+		pollBox.append(addCurrentQuizToPollButton);
+	}
+	
+	const pollEntriesList = document.createElement("ol");
+	pollEntriesList.style =
+	`
+		padding: 0;
+	`;
+	pollEntriesList.id = "pollEntriesList";
+	for (const entry of pollData.entries)
+	{
+		const entryListItem = document.createElement("li");
+		entryListItem.style =
+		`
+			display: grid;
+			grid-template-columns: 1fr 1em;
+		    align-items: center;
+		`;
+		entryListItem.id = entry.short_title;
+		entryListItem.textContent = entry.short_title;
+		removeEntryButton = document.createElement("div");
+		removeEntryButton.style =
+		`
+			background-color: red;
+			color: white;
+			border-radius: 50%;
+			display: flex;
+			justify-content: center;
+			align-content: center;
+			cursor: pointer;
+			height: 1em;
+			width: 1em;
+		`;
+		removeEntryButton.textContent = "×";
+		removeEntryButton.addEventListener("click",
+			(event) =>
+			{
+				entryListItem.remove();
+				pollData.entries = pollData.entries.filter(existingEntry => existingEntry.url !== entry.url);
+				port.postMessage({type:"pollDataUpdate", poll_data: pollData});
+			}
+		);
+		entryListItem.append(removeEntryButton);
+		pollEntriesList.append(entryListItem);
+	}
+	pollBox.append(pollEntriesList);
+
+	const pollTimeInput = document.createElement("input");
+	pollTimeInput.type = "number";
+	pollTimeInput.min = "10";
+	pollTimeInput.max = "60";
+	pollTimeInput.value = pollData.time;
+	pollTimeInput.addEventListener("change",
+		(event) =>
+		{
+			pollData.time = Math.max(10, Math.min(pollTimeInput.value, 60));
+			// Send updated data
+			port.postMessage({type:"pollDataUpdate", poll_data: pollData});
+		}
+	);
+	pollTimeInput.addEventListener("blur",
+		(event) =>
+		{
+			pollTimeInput.value = pollData.time;
+		}
+	);
+	const pollTimeContainer = document.createElement("div");
+	pollTimeContainer.append(
+		document.createTextNode("Poll Time:"),
+		pollTimeInput,
+		document.createTextNode("s")
+	);
+	pollBox.append(pollTimeContainer);
+
+	if (pollData.entries.length > 1)
+	{
+		const sendPollToRoomButton = document.createElement("Button");
+		sendPollToRoomButton.textContent = "Send Poll to Room";
+		sendPollToRoomButton.id = "sendPollToRoom";
+		sendPollToRoomButton.addEventListener("click",
+			(event) =>
+			{
+				// Send poll to server
+				port.postMessage(
+					{
+						type:"startPoll",
+						poll_data: pollData,
+						start_time: (new Date()).getTime()
+					}
+				);
+				pollBox.remove();
+			}
+		);
+		pollBox.append(sendPollToRoomButton);
+	}
+
+	interfaceContainer.append(pollBox);
 }
 
 async function saveRoom(event)

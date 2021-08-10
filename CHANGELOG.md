@@ -3,7 +3,9 @@ Changelog
 
 [Unreleased]
 ------------
--
+###Added
+- Poll feature to vote for next quiz.
+  - Interface for hosts to create a poll together
 
 [v2.0.0] - 2021-03-22
 ---------------------
