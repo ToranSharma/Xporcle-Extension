@@ -53,7 +53,7 @@ function run()
 				retrieveOptions().then(
 					() =>
 					{
-						applyOptionsChanges();
+						applyOptions();
 					}
 				);
 			}
@@ -106,6 +106,9 @@ function run()
 
 async function init()
 {
+	// Add StyleSheet
+	addStyleSheet();
+
 	// Add UI Container
 	addInterfaceBox();
 
@@ -218,15 +221,19 @@ function retrieveOptions()
 			}
 			// Now let's save the options for next time.
 			chrome.storage.sync.set({"options": options});
+
+			// And apply them.
+			applyOptions();
+
 			resolve();
 		});
 	});
 }
 
-function applyOptionsChanges()
+function applyOptions()
 {
 	// Default Username
-	const forms = interfaceBox.querySelectorAll(`form`)
+	const forms = document.querySelectorAll(`#interfaceBox form`);
 	if (forms.length !== 0)
 	{
 		document.querySelectorAll(`#createRoomUsernameInput, #joinRoomUsernameInput`).forEach(
@@ -250,11 +257,30 @@ function applyOptionsChanges()
 	}
 
 	// Blur Room Code
-	const roomCodeHeader = document.querySelector(`#roomCodeHeader`);
-	if (roomCodeHeader !== null)
+	if (options.blurRoomCode)
 	{
-		const codeSpan = roomCodeHeader.lastChild;
-		codeSpan.style.filter = (options.blurRoomCode) ? "blur(0.4em)" : "unset";
+		document.body.classList.add(".blurRoomCode");
+	}
+	else
+	{
+		document.body.classList.remove(".blurRoomCode");
+	}
+}
+
+function addStyleSheet()
+{
+	if (document.head.querySelector("#xporcleStyleSheet") === null)
+	{
+		// We haven't previously added the stylesheet
+
+		const linkElem = document.createElement("link");
+		linkElem.type = "text/css";
+		linkElem.rel = "stylesheet";
+		linkElem.href = chrome.runtime.getURL("stylesheets/interface.css");
+
+		linkElem.id = "xporcleStyleSheet";
+
+		document.head.append(linkElem);
 	}
 }
 
@@ -272,13 +298,7 @@ function addInterfaceBox()
 		interfaceContainer.id = "interfaceContainer";
 		interfaceContainer.style =
 		`
-			position: sticky;
-			top: 67px;
-			margin-left: calc(100% + ${window.getComputedStyle(centerContent).paddingRight});
-			height: 0;
-			width: 0;
-			overflow: visible;
-			z-index: 999;
+			--center-content-padding-right: ${window.getComputedStyle(centerContent).paddingRight};
 		`;
 
 		if (gameHeader !== null)
@@ -299,24 +319,6 @@ function addInterfaceBox()
 	{
 		interfaceBox = document.createElement("div");
 		interfaceBox.id = "interfaceBox";
-		interfaceBox.style =
-		`
-			width: calc(((100vw - 960px) / 2 - 10px));
-			padding: 0.5em;
-			box-sizing: border-box;
-			max-width: 400px;
-			list-style: none;
-			border-width: 1px;
-			border-style: solid;
-			border-color: darkgrey;
-			border-radius: 0.25em;
-			background-color: white;
-
-			display: grid;
-			row-gap: 1em;
-			grid-template-columns: 100%;
-		`;
-
 		interfaceContainer.appendChild(interfaceBox);
 	}
 }
@@ -673,12 +675,6 @@ async function joinRoom(event)
 		const errorMessageBox = document.createElement("div");
 		errorMessageBox.classList.add("errorMessage");
 		errorMessageBox.textContent = error;
-		errorMessageBox.style = 
-		`
-			color: red;
-			background-Color: #f7e6e6;
-			outline: 1px solid pink;
-		`;
 		window.setTimeout(() => {errorMessageBox.remove();}, 5000);
 
 		resetInterface(errorMessageBox,
@@ -754,12 +750,6 @@ async function loadRoom(event, form)
 		const errorMessageBox = document.createElement("div");
 		errorMessageBox.classList.add("errorMessage");
 		errorMessageBox.textContent = error;
-		errorMessageBox.style = 
-		`
-			color: red;
-			background-Color: #f7e6e6;
-			outline: 1px solid pink;
-		`;
 		window.setTimeout(() => {errorMessageBox.remove();}, 5000);
 
 		resetInterface(errorMessageBox);
@@ -795,14 +785,9 @@ function onRoomConnect(existingScores, existingPollData, currentVoteData)
 	// Display the room code
 	const roomCodeHeader = document.createElement("h4");
 	roomCodeHeader.id = "roomCodeHeader";
-	roomCodeHeader.style.margin = "0";
 	roomCodeHeader.textContent = "Room code: ";
 	roomCodeHeader.appendChild(document.createElement("span"));
 	roomCodeHeader.lastChild.textContent = roomCode;
-	if (options.blurRoomCode)
-	{
-		roomCodeHeader.lastChild.style.filter = "blur(0.4em)";
-	}
 	interfaceBox.insertBefore(roomCodeHeader, interfaceBox.firstElementChild);
 
 	// If the user is a host and is on a quiz,
@@ -872,20 +857,10 @@ function onRoomConnect(existingScores, existingPollData, currentVoteData)
 			const playButton = document.querySelector("#button-play");
 
 			const buttonContainer = document.createElement("div");
-			buttonContainer.style =
-			`
-				height: 0;
-				overflow: visible;
-			`;
+			buttonContainer.id = "startCountdownButtonContainer";
+
 			const startCountdownButton = playButton.cloneNode(true);
 			startCountdownButton.id = "startCountdown";
-			startCountdownButton.style =
-			`
-				position: absolute;
-				transform: translateY(-100%);
-				background-color: green;
-			`;
-			startCountdownButton.firstChild.style["background"] = "unset";
 			startCountdownButton.addEventListener("click",
 				(event) =>
 				{
@@ -996,23 +971,6 @@ function addCreatePollBox(pollData)
 {
 	const pollBox = document.createElement("div");
 	pollBox.id = "pollBox";
-	pollBox.style =
-	`
-		width: calc(((100vw - 960px) / 2 - 10px));
-		padding: 0.5em;
-		box-sizing: border-box;
-		max-width: 400px;
-		list-style: none;
-		border-width: 1px;
-		border-style: solid;
-		border-color: darkgrey;
-		border-radius: 0.25em;
-		background-color: white;
-
-		display: grid;
-		row-gap: 1em;
-		grid-template-columns: 100%;
-	`;
 	
 	const header = document.createElement("h2");
 	header.textContent = "Next Quiz Poll";
@@ -1038,29 +996,10 @@ function addCreatePollBox(pollData)
 				{
 					pollData.entries.push(currentQuiz);
 					const newEntryListItem = document.createElement("li");
-					newEntryListItem.style =
-					`
-						display: grid;
-						grid-template-columns: 1fr 1em;
-						align-items: center;
-					`;
 
-					newEntryListItem.id = currentQuiz.short_title;
 					newEntryListItem.textContent = currentQuiz.short_title;
+
 					removeEntryButton = document.createElement("div");
-					removeEntryButton.style =
-					`
-						background-color: red;
-						color: white;
-						border-radius: 50%;
-						display: flex;
-						justify-content: center;
-						align-content: center;
-						cursor: pointer;
-						height: 1em;
-						width: 1em;
-						line:height: 1em;
-					`;
 					removeEntryButton.textContent = "×";
 					removeEntryButton.addEventListener("click",
 						(event) =>
@@ -1083,36 +1022,13 @@ function addCreatePollBox(pollData)
 	}
 	
 	const pollEntriesList = document.createElement("ol");
-	pollEntriesList.style =
-	`
-		padding: 0;
-	`;
 	pollEntriesList.id = "pollEntriesList";
+
 	for (const entry of pollData.entries)
 	{
 		const entryListItem = document.createElement("li");
-		entryListItem.style =
-		`
-			display: grid;
-			grid-template-columns: 1fr 1em;
-		    align-items: center;
-		`;
-		entryListItem.id = entry.short_title;
 		entryListItem.textContent = entry.short_title;
 		removeEntryButton = document.createElement("div");
-		removeEntryButton.style =
-		`
-			background-color: red;
-			color: white;
-			border-radius: 50%;
-			display: flex;
-			justify-content: center;
-			align-content: center;
-			cursor: pointer;
-			height: 1em;
-			width: 1em;
-			line-height: 1em;
-		`;
 		removeEntryButton.textContent = "×";
 		removeEntryButton.addEventListener("click",
 			(event) =>
@@ -1188,28 +1104,9 @@ function updateCreatePollBox(pollData)
 	for (const entry of pollData.entries)
 	{
 		const entryListItem = document.createElement("li");
-		entryListItem.style =
-		`
-			display: grid;
-			grid-template-columns: 1fr 1em;
-		    align-items: center;
-		`;
 		entryListItem.id = entry.short_title;
 		entryListItem.textContent = entry.short_title;
 		removeEntryButton = document.createElement("div");
-		removeEntryButton.style =
-		`
-			background-color: red;
-			color: white;
-			border-radius: 50%;
-			display: flex;
-			justify-content: center;
-			align-content: center;
-			cursor: pointer;
-			height: 1em;
-			width: 1em;
-			line-height: 1em;
-		`;
 		removeEntryButton.textContent = "×";
 		removeEntryButton.addEventListener("click",
 			(event) =>
@@ -1264,22 +1161,6 @@ function addVoteInfoBox(voteData)
 	document.querySelector("#voteInfoBox")?.remove()
 	const voteInfoBox = document.createElement("div");
 	voteInfoBox.id = "voteInfoBox";
-	voteInfoBox.style = 
-	`
-		width: calc(((100vw - 960px) / 2) - 10px);
-		padding: 0.5em;
-		box-sizing: border-box;
-		max-width: 400px;
-		list-style: none;
-		border-width: 1px;
-		border-style: solid;
-		border-color: darkgrey;
-		border-radius: 0.25em;
-		background-color: white;
-		display: grid;
-		row-gap: 1em;
-		grid-template-columns: 100%;
-	`;
 
 	const header = document.createElement("h2");
 	header.textContent = "Vote Status";
@@ -1373,39 +1254,9 @@ function addBallotPopout(poll)
 	document.querySelector("#ballotPopout")?.remove();
 	const ballotPopout = document.createElement("div");
 	ballotPopout.id = "ballotPopout";
-	ballotPopout.style =
-	`
-		position: fixed;
-		background: white;
-		left: 50%;
-		top: 50%;
-		transform: translate(-50%,-50%);
-		width: 40vw;
-		min-height: 40vw;
-		z-index: 999999;
-		border-radius: 0.5em;
-		border: 1px solid #888;
-		display: grid;
-		row-gap: 1em;
-		grid-template-columns: 100%;
-		padding: 0.5em;
-	`;
-
 	const closeBoxButton = document.createElement("button");
+	closeBoxButton.id = "closeBallotPopout";
 	closeBoxButton.textContent = "×";
-	closeBoxButton.style =
-	`
-		appearance: none;
-		padding: 0;
-		border: 0;
-		position: absolute;
-		right: 1rem;
-		top: 1rem;
-		color: grey;
-		cursor: pointer;
-		background: none;
-		font-size: 150%;
-	`;
 	closeBoxButton.addEventListener("click",
 		(event) =>
 		{
@@ -1445,20 +1296,10 @@ function addBallotPopout(poll)
 	ballotPopout.append(timer);
 
 	const entriesList = document.createElement("ol");
-	entriesList.style = 
-	`
-		padding: 0;
-	`;
 	for (const entry of poll.entries)
 	{
 		const entryListItem = document.createElement("li");
 		entryListItem.textContent = entry.long_title;
-		entryListItem.style =
-		`
-			display: grid;
-			grid-template-columns: 1fr 1em;
-		    align-items: center;
-		`;
 
 		const checkbox = document.createElement("input");
 		checkbox.type = "checkbox";
@@ -1687,12 +1528,12 @@ function updateContextMenuHandling()
 			if (host && !hosts.includes(row.firstChild.textContent))
 			{
 				row.addEventListener("contextmenu", cmEventHandle);
-				row.style.cursor = "context-menu";
+				row.classList.add("hasContextMenu");
 			}
 			else
 			{
 				row.removeEventListener("contextmenu", cmEventHandle);
-				row.style.cursor = "default";
+				row.classList.remove("hasContextMenu");
 			}
 		}
 	);
@@ -1713,11 +1554,11 @@ function updateLeaderboardUrls()
 			const name = row.firstChild.textContent;
 			if (name !== username && (name in urls) && urls[name] !== window.location.pathname)
 			{
-				row.style.backgroundColor = "LightGrey";
+				row.classList.add("onDifferentPage");
 			}
 			else
 			{
-				row.style.backgroundColor = "unset";
+				row.classList.remove("onDifferentPage");
 			}
 		}
 	);
@@ -1801,25 +1642,8 @@ function startCountdown(send = false)
 {
 	const countdownContainer = document.createElement("div");
 	countdownContainer.id = "countdownContainer";
-	countdownContainer.style =
-	`
-		position: fixed;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		background-color: rgba(255,255,255,0.3);
-		z-index: 9999;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-	`;
 	
 	const countElement = document.createElement("span");
-	countElement.style =
-	`
-		font-size: 20vw;
-	`;
 
 	let count = 3;
 	countElement.textContent = count--;
@@ -1863,11 +1687,11 @@ function updateLiveScores(scores)
 				if (scores[nameElem.textContent]["finished"])
 				{
 					// This player has finished the quiz
-					row.style.backgroundColor = "LightGreen";
+					row.classList.add("finished");
 				}
 				else
 				{
-					row.style.backgroundColor = "unset";
+					row.classList.remove("finished");
 				}
 			}
 			else
@@ -1949,68 +1773,33 @@ function addLeaderboard(scores)
 
 	leaderboard = document.createElement("ol");
 	leaderboard.id = "leaderboard";
-	leaderboard.style =
-	`
-		width: 100%;
-		padding: 0;
-		margin: auto;
-	`;
 
 	const columnHeaders = document.createElement("h3");
-	columnHeaders.style =
-	`
-		margin: 0 0 1em 0;
-		display: grid;
-		grid-template-columns: 3fr 1fr 1fr;
-	`;
 	columnHeaders.appendChild(document.createElement("span"));
 	columnHeaders.lastChild.textContent = "Name";
 	columnHeaders.appendChild(document.createElement("span"));
 	columnHeaders.lastChild.textContent = "Wins";
-	columnHeaders.lastChild.style = `text-align: right;`;
 	columnHeaders.appendChild(document.createElement("span"));
 	columnHeaders.lastChild.textContent = "Points";
-	columnHeaders.lastChild.style = `text-align: right;`;
 
 	leaderboard.appendChild(columnHeaders);
 
 	for (const [name, {score, wins}] of Object.entries(scores))
 	{
 		const row = document.createElement("li");
-		row.style =
-		`
-			display: grid;
-			grid-template-columns: fit-content(calc(60% - 3em)) 1fr 20% 20%;
-			cusor: default;
-		`;
 
 		// Username
 		const usernameContainer = document.createElement("span");
 		usernameContainer.textContent = name;
-		usernameContainer.style =
-		`
-			overflow-wrap: anywhere;
-		`;
 		row.appendChild(usernameContainer);
 
 		// Host
 		row.appendChild(document.createElement("span"));
 		row.lastChild.textContent = (hosts.includes(name)) ? "host" : "";
-		row.lastChild.style =
-		`
-			font-size: 80%;
-			font-style: oblique;
-			padding-left: 0.5em;
-			align-self: end;
-		`;
 
 		// Wins
 		const winsContainer = document.createElement("span");
 		winsContainer.textContent = wins;
-		winsContainer.style =
-		`
-			text-align: right;
-		`;
 		row.appendChild(winsContainer);
 
 		// Points
@@ -2024,7 +1813,6 @@ function addLeaderboard(scores)
 
 	const leaderboardHeader = document.createElement("h2");
 	leaderboardHeader.id = "leaderboardHeader";
-	leaderboardHeader.style.margin = "0";
 	leaderboardHeader.textContent = "Overall Rankings";
 	interfaceBox.appendChild(leaderboardHeader);
 
@@ -2044,48 +1832,23 @@ function addLiveScores(scores)
 {
 	const liveScores = document.createElement("ol");
 	liveScores.id = "liveScores";
-	liveScores.style =
-	`
-		width: 100%;
-		max-width: 10em;
-		padding: 0;
-		margin: auto;
-	`;
 
 	const columnHeaders = document.createElement("h3");
-	columnHeaders.style =
-	`
-		margin: 0 0 1em 0;
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-	`;
 
 	columnHeaders.appendChild(document.createElement("span"));
 	columnHeaders.lastChild.textContent = "Name";
 	columnHeaders.appendChild(document.createElement("span"));
 	columnHeaders.lastChild.textContent = "Points";
-	columnHeaders.lastChild.style = `text-align: right;`;
 
 	liveScores.appendChild(columnHeaders);
 	
 	for (const [name, data] of Object.entries(scores))
 	{
 		const row = document.createElement("li");
-		row.style =
-		`
-			display: grid;
-			grid-template-columns: auto max-content;
-			background-color: inherit;
-		`;
 		row.appendChild(document.createTextNode(name));
 
 		const pointsContainer = document.createElement("span");
 		pointsContainer.textContent = data["score"];
-		pointsContainer.style =
-		`
-			text-align: right;
-
-		`;
 		row.appendChild(pointsContainer);
 
 		liveScores.appendChild(row);
@@ -2093,7 +1856,6 @@ function addLiveScores(scores)
 
 	const liveScoresHeader = document.createElement("h2");
 	liveScoresHeader.id = "liveScoresHeader";
-	liveScoresHeader.style.margin = "0";
 	liveScoresHeader.textContent = "Quiz Scores";
 	interfaceBox.insertBefore(liveScoresHeader, interfaceBox.querySelector(`#leaderboardHeader`));
 
@@ -2110,34 +1872,15 @@ function addSuggestionsList()
 
 	interfaceBox.appendChild(document.createElement("h3"));
 	interfaceBox.lastChild.id = "suggestionsHeader";
-	interfaceBox.lastChild.style =
-	`
-		margin: 0;
-	`;
 	interfaceBox.lastChild.textContent = "Suggestions";
 
 	const suggestionsList = document.createElement("ol");
 	suggestionsList.id = "suggestionsList";
-	suggestionsList.style =
-	`
-		width: 100%;
-		padding: 0;
-		margin: auto;
-		display: grid;
-		grid-row-gap: 0.75em;
-	`;
 
 	suggestions.forEach(
 		(suggestion) =>
 		{
 			const row = document.createElement("li");
-			row.style =
-			`
-				display: block;
-				grid-template-columns: max-content auto;
-				cursor: pointer;
-				text-decoration: underline;
-			`;
 			row.title = suggestion["long_title"];
 			row.textContent = `${suggestion["username"]}: ${suggestion["short_title"]}`;
 			row.addEventListener("click",
@@ -2188,42 +1931,14 @@ function displayContextMenu(event)
 	menu.id = "contextMenu";
 	menu.style =
 	`
-		position: absolute;
-		top: ${top}px;
-		left: ${left}px;
-
-		width: max-content;
-		border: 1px solid #888;
-
-		padding: 0.25em 0;
-
-		box-shadow: 2px 2px 3px rgba(0,0,0, 0.5);
-
-		list-style: none;
-		background-color: white;
-
-		display: grid;
-
-		font-size: 85%;
+		--top: ${top}px;
+		--left: ${left}px;
+		--translate-x: 0px;
+		--translate-y: 0px;
 	`;
-
-	const mOver = (event) =>
-	{
-		event.target.style.backgroundColor = "#ccc";
-	};
-	const mOut = (event) =>
-	{
-		event.target.style.backgroundColor = "unset";
-	}
 
 	let menuItem = document.createElement("li");
 	menuItem.textContent = `Make ${targetUsername} a host`;
-	menuItem.style =
-	`
-		padding: 0.25em 2em;
-	`;
-	menuItem.addEventListener("mouseover", mOver);
-	menuItem.addEventListener("mouseout", mOut);
 	menuItem.addEventListener("click",
 		(event) =>
 		{
@@ -2235,8 +1950,6 @@ function displayContextMenu(event)
 
 	menuItem = menuItem.cloneNode(true);
 	menuItem.textContent = `Swap with ${targetUsername} as a host`;
-	menuItem.addEventListener("mouseover", mOver);
-	menuItem.addEventListener("mouseout", mOut);
 	menuItem.addEventListener("click",
 		(event) =>
 		{
@@ -2248,8 +1961,6 @@ function displayContextMenu(event)
 
 	menuItem = menuItem.cloneNode(true);
 	menuItem.textContent = `Remove ${targetUsername} from room`;
-	menuItem.addEventListener("mouseover", mOver);
-	menuItem.addEventListener("mouseout", mOut);
 	menuItem.addEventListener("click",
 		(event) =>
 		{
@@ -2261,13 +1972,13 @@ function displayContextMenu(event)
 
 
 	target.appendChild(menu);
-	if (menu.getBoundingClientRect().right > (window.innerWidth - 10))
+	if (menu.getBoundingClientRect().right > (window.innerWidth - 20))
 	{
-		menu.style.transform += `translateX(${window.innerWidth - menu.getBoundingClientRect().right - 10}px)`;
+		menu.style.setProperty("--translate-x", `${window.innerWidth - menu.getBoundingClientRect().right - 20}px`);
 	}
 	if (menu.getBoundingClientRect().bottom > (window.innerHeight - 10))
 	{
-		menu.style.transform += "translateY(-100%)";
+		menu.style.setProperty("--translate-y", "-100%");
 	}
 
 
@@ -2385,11 +2096,6 @@ function addCreateRoomForm()
 	form.id = "createRoomForm";
 	form.autocomplete = "off";
 	form.addEventListener("submit", createRoom);
-	form.style = 
-	`
-		display: flex;
-		flex-direction: column;
-	`;
 
 	const heading = document.createElement("h3");
 	heading.textContent = "Create a Room";
@@ -2439,21 +2145,6 @@ function addCreateRoomForm()
 
 	form.appendChild(button);
 
-	Array.from(form.children).forEach(
-		(child) =>
-		{
-			if (child !== heading)
-			{
-				child.style =
-				`
-					width: min(100%, 10em);
-					box-sizing: border-box;
-					margin: 0 auto;
-				`;
-			}
-		}
-	);
-
 	interfaceBox.appendChild(form);
 }
 
@@ -2463,11 +2154,6 @@ function addJoinRoomForm()
 	form.id = "joinRoomForm";
 	form.autocomplete = "off";
 	form.addEventListener("submit", joinRoom);
-	form.style = 
-	`
-		display: flex;
-		flex-direction: column;
-	`;
 
 	const heading = document.createElement("h3");
 	heading.textContent = "Join a Room";
@@ -2549,21 +2235,6 @@ function addJoinRoomForm()
 
 	form.appendChild(button);
 
-	Array.from(form.children).forEach(
-		(child) =>
-		{
-			if (child !== heading)
-			{
-				child.style =
-				`
-					width: min(100%, 10em);
-					box-sizing: border-box;
-					margin: 0 auto;
-				`;
-			}
-		}
-	);
-
 	interfaceBox.appendChild(form);
 }
 
@@ -2577,11 +2248,6 @@ function addLoadRoomForm(storedSaveNames)
 	form.id = "loadRoomForm";
 	form.autocomplete = "off";
 	form.addEventListener("submit", (event) => {loadRoom(event, form)});
-	form.style = 
-	`
-		display: flex;
-		flex-direction: column;
-	`;
 
 	const heading = document.createElement("h3");
 	heading.textContent = "Load a Saved Room";
@@ -2619,21 +2285,6 @@ function addLoadRoomForm(storedSaveNames)
 	);
 
 	form.appendChild(button);
-
-	Array.from(form.children).forEach(
-		(child) =>
-		{
-			if (child !== heading)
-			{
-				child.style =
-				`
-					width: min(100%, 10em);
-					box-sizing: border-box;
-					margin: 0 auto;
-				`;
-			}
-		}
-	);
 
 	interfaceBox.appendChild(form);
 }

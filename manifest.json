@@ -36,6 +36,10 @@
 		}
 	],
 
+	"web_accessible_resources":	[
+		"stylesheets/interface.css"
+	],
+
 	"permissions"		:	["storage"],
 
 	"options_ui"		:	{
