@@ -3,6 +3,12 @@ Changelog
 
 [Unreleased]
 ------------
+-
+
+
+[v2.1.0] - 2021-08-14
+---------------------
+[GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v2.1.0)
 ### Added
 - Poll feature to vote for next quiz.
   - Interface for hosts to create a poll together.
@@ -133,6 +139,7 @@ Changelog
 - Options page popup placeholder.
 
 [Unreleased]: https://github.com/ToranSharma/Xporcle-Extension/compare/master...develop
+[v2.1.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v2.0.0...v2.1.0
 [v2.0.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.2.1...v2.0.0
 [v1.2.1]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.2.0...v1.2.1
 [v1.2.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.1.1...v1.2.0
