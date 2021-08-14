@@ -38,6 +38,8 @@ let hosts = [];
 let suggestions = [];
 let playing = null;
 let pollData = {};
+let voteData = {};
+let voted = false;
 let saveName = null;
 
 chrome.runtime.onConnect.addListener(
@@ -66,7 +68,9 @@ chrome.runtime.onConnect.addListener(
 									hosts: hosts,
 									suggestions: suggestions,
 									poll_data: pollData,
+									vote_data: voteData,
 									saveName: saveName,
+									voted: voted
 								}
 							);
 							ws.send(JSON.stringify({type: "url_update", url: message["url"]}))
@@ -108,13 +112,20 @@ chrome.runtime.onConnect.addListener(
 						{
 							playing = !message["finished"]
 						}
-						else if (message.type === "pollDataUpdate")
+						else if (
+							message.type === "poll_create"
+							|| message.type === "poll_data_update"
+						)
 						{
 							pollData = message["poll_data"];
 						}
-						else if (message.type === "pollStart")
+						else if (message.type === "poll_start")
 						{
 							pollData = {};
+						}
+						if (message.type === "poll_vote")
+						{
+							voted = true;
 						}
 					}
 				}
@@ -225,6 +236,7 @@ function forwardMessage(event)
 	{
 		host = true;
 		urls = message["urls"];
+		poll_data = message["poll_data"] ?? {}
 	}
 	else if (
 		messageType === "users_update"
@@ -284,6 +296,24 @@ function forwardMessage(event)
 			delete hosts[removedUser];
 		}
 	}
+	else if
+	(
+		messageType === "poll_create"
+		|| messageType === "poll_data_update"
+	)
+	{
+		pollData = message["poll_data"];
+	}
+	else if (messageType === "poll_start")
+	{
+		pollData = {};
+		voted = false;
+		voteData = message["vote_data"];
+	}
+	else if (messageType === "vote_update")
+	{
+		voteData = message["vote_data"];
+	}
 
 	if (messagePort !== null)
 	{
@@ -302,5 +332,7 @@ function reset()
 	hosts = [];
 	playing = null;
 	pollData = {};
+	voteData = {};
 	saveName = null;
+	voted = false;
 }
