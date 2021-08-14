@@ -2,12 +2,14 @@ let port = null;
 
 let onQuizPage = null;
 let interfaceBox = null;
+let interfaceContainer = null;
 let roomCode = null;
 let username = null;
 let host = null;
 let urls = {};
 let hosts = [];
 let suggestions = [];
+let voted = false;
 
 let quizStartTime = null;
 let quizRunning = false;
@@ -51,7 +53,7 @@ function run()
 				retrieveOptions().then(
 					() =>
 					{
-						applyOptionsChanges();
+						applyOptions();
 					}
 				);
 			}
@@ -104,6 +106,9 @@ function run()
 
 async function init()
 {
+	// Add StyleSheet
+	addStyleSheet();
+
 	// Add UI Container
 	addInterfaceBox();
 
@@ -133,9 +138,11 @@ async function init()
 		hosts = statusResponse["hosts"];
 		suggestions = statusResponse["suggestions"];
 		saveName = statusResponse["saveName"];
+		voted = statusResponse["voted"];
 
-
-		onRoomConnect(statusResponse["scores"]);
+		const pollData =  Object.keys(statusResponse["poll_data"]).length !== 0 ? statusResponse["poll_data"] : undefined;
+		const voteData =  Object.keys(statusResponse["vote_data"]).length !== 0 ? statusResponse["vote_data"] : undefined;
+		onRoomConnect(statusResponse["scores"], pollData, voteData);
 	}
 	else
 	{
@@ -214,15 +221,19 @@ function retrieveOptions()
 			}
 			// Now let's save the options for next time.
 			chrome.storage.sync.set({"options": options});
+
+			// And apply them.
+			applyOptions();
+
 			resolve();
 		});
 	});
 }
 
-function applyOptionsChanges()
+function applyOptions()
 {
 	// Default Username
-	const forms = interfaceBox.querySelectorAll(`form`)
+	const forms = document.querySelectorAll(`#interfaceBox form`);
 	if (forms.length !== 0)
 	{
 		document.querySelectorAll(`#createRoomUsernameInput, #joinRoomUsernameInput`).forEach(
@@ -246,11 +257,30 @@ function applyOptionsChanges()
 	}
 
 	// Blur Room Code
-	const roomCodeHeader = document.querySelector(`#roomCodeHeader`);
-	if (roomCodeHeader !== null)
+	if (options.blurRoomCode)
 	{
-		const codeSpan = roomCodeHeader.lastChild;
-		codeSpan.style.filter = (options.blurRoomCode) ? "blur(0.4em)" : "unset";
+		document.body.classList.add(".blurRoomCode");
+	}
+	else
+	{
+		document.body.classList.remove(".blurRoomCode");
+	}
+}
+
+function addStyleSheet()
+{
+	if (document.head.querySelector("#xporcleStyleSheet") === null)
+	{
+		// We haven't previously added the stylesheet
+
+		const linkElem = document.createElement("link");
+		linkElem.type = "text/css";
+		linkElem.rel = "stylesheet";
+		linkElem.href = chrome.runtime.getURL("stylesheets/interface.css");
+
+		linkElem.id = "xporcleStyleSheet";
+
+		document.head.append(linkElem);
 	}
 }
 
@@ -261,20 +291,14 @@ function addInterfaceBox()
 	const gameHeader = document.querySelector(`.game-header`);
 	const staffPicks = document.querySelector(`#staff-picks-wrapper`);
 
-	let interfaceContainer = document.querySelector(`#interfaceContainer`);
+	interfaceContainer = document.querySelector(`#interfaceContainer`);
 	if (interfaceContainer === null)
 	{
 		interfaceContainer = document.createElement("div");
 		interfaceContainer.id = "interfaceContainer";
 		interfaceContainer.style =
 		`
-			position: sticky;
-			top: 67px;
-			margin-left: calc(100% + ${window.getComputedStyle(centerContent).paddingRight});
-			height: 0;
-			width: 0;
-			overflow: visible;
-			z-index: 999;
+			--center-content-padding-right: ${window.getComputedStyle(centerContent).paddingRight};
 		`;
 
 		if (gameHeader !== null)
@@ -295,24 +319,6 @@ function addInterfaceBox()
 	{
 		interfaceBox = document.createElement("div");
 		interfaceBox.id = "interfaceBox";
-		interfaceBox.style =
-		`
-			width: calc(((100vw - 960px) / 2 - 10px));
-			padding: 0.5em;
-			box-sizing: border-box;
-			max-width: 400px;
-			list-style: none;
-			border-width: 1px;
-			border-style: solid;
-			border-color: darkgrey;
-			border-radius: 0.25em;
-			background-color: white;
-
-			display: grid;
-			row-gap: 1em;
-			grid-template-columns: 100%;
-		`;
-
 		interfaceContainer.appendChild(interfaceBox);
 	}
 }
@@ -341,6 +347,10 @@ function resetInterface(errorElement, lastUsername, lastCode)
 
 	setQuizStartProvention(false);
 	document.querySelectorAll("#startCountdown").forEach(elm => elm.remove());
+
+	document.querySelector("#pollBox")?.remove();
+	document.querySelector("#voteInfoBox")?.remove();
+	document.querySelector("#ballotPopout")?.remove();
 
 	init().then(
 		() =>
@@ -427,7 +437,7 @@ function processMessage(message)
 				updateLeaderboardUrls();
 
 				suggestions = [];
-				document.querySelectorAll(`#changeQuizButton, #suggestionsHeader, #suggestionsList, #saveButton`).forEach(element => element.remove());
+				document.querySelectorAll(`#changeQuizButton, #suggestionsHeader, #suggestionsList, #saveButton, #createPollButton`).forEach(element => element.remove());
 
 				// Add non host features
 				if (onQuizPage)
@@ -451,6 +461,14 @@ function processMessage(message)
 			updateLeaderboardUrls();
 			updateContextMenuHandling();
 			addSaveRoomButton();
+			if (message["poll_data"] !== null)
+			{
+				addCreatePollBox(message["poll_data"]);
+			}
+			else
+			{
+				addCreatePollButton();
+			}
 			break;
 		case "start_countdown":
 			// Start the countdown
@@ -487,6 +505,23 @@ function processMessage(message)
 		case "url_update":
 			urls[message["username"]] = message["url"]
 			updateLeaderboardUrls()
+			break;
+		case "poll_create":
+			if (document.querySelector("#pollBox") === null)
+			{
+				addCreatePollBox(message["poll_data"]);
+			}
+			break;
+		case "poll_data_update":
+			updateCreatePollBox(message["poll_data"]);
+			break;
+		case "poll_start":
+			document.querySelector("#pollBox")?.remove();
+			addVoteInfoBox(message["vote_data"]);
+			addBallotPopout(message["vote_data"].poll);
+			break;
+		case "vote_update":
+			updateVoteInfoBox(message["vote_data"]);
 			break;
 	}
 
@@ -640,12 +675,6 @@ async function joinRoom(event)
 		const errorMessageBox = document.createElement("div");
 		errorMessageBox.classList.add("errorMessage");
 		errorMessageBox.textContent = error;
-		errorMessageBox.style = 
-		`
-			color: red;
-			background-Color: #f7e6e6;
-			outline: 1px solid pink;
-		`;
 		window.setTimeout(() => {errorMessageBox.remove();}, 5000);
 
 		resetInterface(errorMessageBox,
@@ -721,12 +750,6 @@ async function loadRoom(event, form)
 		const errorMessageBox = document.createElement("div");
 		errorMessageBox.classList.add("errorMessage");
 		errorMessageBox.textContent = error;
-		errorMessageBox.style = 
-		`
-			color: red;
-			background-Color: #f7e6e6;
-			outline: 1px solid pink;
-		`;
 		window.setTimeout(() => {errorMessageBox.remove();}, 5000);
 
 		resetInterface(errorMessageBox);
@@ -746,7 +769,7 @@ async function loadRoom(event, form)
 
 	onRoomConnect();
 }
-function onRoomConnect(existingScores)
+function onRoomConnect(existingScores, existingPollData, currentVoteData)
 {
 	// Set up message handing if not done already.
 	if (!port.onMessage.hasListener(processMessage))
@@ -762,14 +785,9 @@ function onRoomConnect(existingScores)
 	// Display the room code
 	const roomCodeHeader = document.createElement("h4");
 	roomCodeHeader.id = "roomCodeHeader";
-	roomCodeHeader.style.margin = "0";
 	roomCodeHeader.textContent = "Room code: ";
 	roomCodeHeader.appendChild(document.createElement("span"));
 	roomCodeHeader.lastChild.textContent = roomCode;
-	if (options.blurRoomCode)
-	{
-		roomCodeHeader.lastChild.style.filter = "blur(0.4em)";
-	}
 	interfaceBox.insertBefore(roomCodeHeader, interfaceBox.firstElementChild);
 
 	// If the user is a host and is on a quiz,
@@ -806,10 +824,28 @@ function onRoomConnect(existingScores)
 		}
 	);
 
-	// Add a button to save the current room state
+	// Add a buttons for host only features
 	if (host)
 	{
 		addSaveRoomButton();
+		if (existingPollData)
+		{
+			addCreatePollBox(existingPollData);
+		}
+		else
+		{
+			addCreatePollButton();
+		}
+	}
+
+	// Add vote info for current poll
+	if (currentVoteData !== undefined)
+	{
+		addVoteInfoBox(currentVoteData);
+		if (!voted && !currentVoteData["finished"])
+		{
+			addBallotPopout(currentVoteData.poll);
+		}
 	}
 
 	// If on a quiz page, observe for the start of the quiz
@@ -821,20 +857,10 @@ function onRoomConnect(existingScores)
 			const playButton = document.querySelector("#button-play");
 
 			const buttonContainer = document.createElement("div");
-			buttonContainer.style =
-			`
-				height: 0;
-				overflow: visible;
-			`;
+			buttonContainer.id = "startCountdownButtonContainer";
+
 			const startCountdownButton = playButton.cloneNode(true);
 			startCountdownButton.id = "startCountdown";
-			startCountdownButton.style =
-			`
-				position: absolute;
-				transform: translateY(-100%);
-				background-color: green;
-			`;
-			startCountdownButton.firstChild.style["background"] = "unset";
 			startCountdownButton.addEventListener("click",
 				(event) =>
 				{
@@ -921,6 +947,382 @@ function addSuggestionQuizButton()
 	);
 	// The button goes just after the room code header, where the changeQuizButton would be for hosts
 	interfaceBox.insertBefore(suggestQuizButton, interfaceBox.querySelector(`#roomCodeHeader`).nextElementSibling);
+}
+
+function addCreatePollButton()
+{
+	const createPollButton = document.createElement("button");
+	createPollButton.id = "createPollButton";
+	createPollButton.textContent = "Create Poll for Next Quiz";
+	createPollButton.addEventListener("click",
+		(event) =>
+		{
+			const pollData = {duration: 30, entries: []};
+			addCreatePollBox(pollData);
+			port.postMessage({type: "poll_create", poll_data: pollData});
+			createPollButton.remove();
+		}
+	);
+
+	interfaceBox.append(createPollButton);
+}
+
+function addCreatePollBox(pollData)
+{
+	const pollBox = document.createElement("div");
+	pollBox.id = "pollBox";
+	
+	const header = document.createElement("h2");
+	header.textContent = "Next Quiz Poll";
+	pollBox.append(header);
+
+	if (onQuizPage)
+	{
+		// Get info about quiz from page
+		const currentQuiz =
+		{
+			url: window.location.href,
+			short_title: document.querySelector(`title`).textContent,
+			long_title: document.querySelector("#gameMeta>h2").textContent
+		};
+
+		const addCurrentQuizToPollButton = document.createElement("button");
+		addCurrentQuizToPollButton.textContent = "Add Quiz to Poll";
+		addCurrentQuizToPollButton.id = "addCurrentQuizToPoll";
+		addCurrentQuizToPollButton.addEventListener("click",
+			(event) =>
+			{
+				if (!pollData.entries.some(existingQuiz => existingQuiz.url === currentQuiz.url))
+				{
+					pollData.entries.push(currentQuiz);
+					const newEntryListItem = document.createElement("li");
+
+					newEntryListItem.textContent = currentQuiz.short_title;
+
+					removeEntryButton = document.createElement("div");
+					removeEntryButton.textContent = "×";
+					removeEntryButton.addEventListener("click",
+						(event) =>
+						{
+							newEntryListItem.remove();
+							pollData.entries = pollData.entries.filter(existingEntry => existingEntry.url !== currentQuiz.url);
+							port.postMessage({type:"poll_data_update", poll_data: pollData});
+						}
+					);
+					newEntryListItem.append(removeEntryButton);
+
+					pollBox.querySelector("#pollEntriesList").append(newEntryListItem);
+
+					// Send updated data
+					port.postMessage({type:"poll_data_update", poll_data: pollData});
+				}
+			}
+		);
+		pollBox.append(addCurrentQuizToPollButton);
+	}
+	
+	const pollEntriesList = document.createElement("ol");
+	pollEntriesList.id = "pollEntriesList";
+
+	for (const entry of pollData.entries)
+	{
+		const entryListItem = document.createElement("li");
+		entryListItem.textContent = entry.short_title;
+		removeEntryButton = document.createElement("div");
+		removeEntryButton.textContent = "×";
+		removeEntryButton.addEventListener("click",
+			(event) =>
+			{
+				entryListItem.remove();
+				pollData.entries = pollData.entries.filter(existingEntry => existingEntry.url !== entry.url);
+				port.postMessage({type:"poll_data_update", poll_data: pollData});
+			}
+		);
+		entryListItem.append(removeEntryButton);
+		pollEntriesList.append(entryListItem);
+	}
+	pollBox.append(pollEntriesList);
+
+	const pollDurationInput = document.createElement("input");
+	pollDurationInput.id = "pollDuration";
+	pollDurationInput.type = "number";
+	pollDurationInput.min = "10";
+	pollDurationInput.max = "60";
+	pollDurationInput.value = pollData.duration;
+	pollDurationInput.addEventListener("change",
+		(event) =>
+		{
+			pollData.duration = Math.max(10, Math.min(pollDurationInput.value, 60));
+			// Send updated data
+			port.postMessage({type:"poll_data_update", poll_data: pollData});
+		}
+	);
+	pollDurationInput.addEventListener("blur",
+		(event) =>
+		{
+			pollDurationInput.value = pollData.duration;
+		}
+	);
+	const pollDurationContainer = document.createElement("div");
+	pollDurationContainer.append(
+		document.createTextNode("Poll Time:"),
+		pollDurationInput,
+		document.createTextNode("s")
+	);
+	pollBox.append(pollDurationContainer);
+
+	if (pollData.entries.length > 1)
+	{
+		const sendPollToRoomButton = document.createElement("Button");
+		sendPollToRoomButton.textContent = "Send Poll to Room";
+		sendPollToRoomButton.id = "sendPollToRoom";
+		sendPollToRoomButton.addEventListener("click",
+			(event) =>
+			{
+				// Send poll to server
+				port.postMessage(
+					{
+						type:"poll_start",
+						start_time: (new Date()).getTime()
+					}
+				);
+				pollBox.remove();
+			}
+		);
+		pollBox.append(sendPollToRoomButton);
+	}
+
+	interfaceContainer.insertBefore(pollBox, interfaceBox.nextElementSibling);
+}
+
+function updateCreatePollBox(pollData)
+{
+	const pollBox = document.querySelector("#pollBox");
+	// Clear entires
+	pollBox.querySelectorAll("ol li").forEach(entry => entry.remove());
+	// Add updated entries
+	for (const entry of pollData.entries)
+	{
+		const entryListItem = document.createElement("li");
+		entryListItem.id = entry.short_title;
+		entryListItem.textContent = entry.short_title;
+		removeEntryButton = document.createElement("div");
+		removeEntryButton.textContent = "×";
+		removeEntryButton.addEventListener("click",
+			(event) =>
+			{
+				entryListItem.remove();
+				pollData.entries = pollData.entries.filter(existingEntry => existingEntry.url !== entry.url);
+				port.postMessage({type:"poll_data_update", poll_data: pollData});
+			}
+		);
+		entryListItem.append(removeEntryButton);
+		pollBox.querySelector("ol").append(entryListItem);
+	}
+
+	// Update duration
+	pollBox.querySelector("#pollDuration").value = pollData.duration;
+
+	// Update start button display
+	let sendPollToRoomButton = document.querySelector("#sendPollToRoom");
+	if (pollData.entries.length > 1)
+	{
+		if (sendPollToRoomButton === null)
+		{
+			sendPollToRoomButton = document.createElement("Button");
+			sendPollToRoomButton.textContent = "Send Poll to Room";
+			sendPollToRoomButton.id = "sendPollToRoom";
+			sendPollToRoomButton.addEventListener("click",
+				(event) =>
+				{
+					// Send poll to server
+					port.postMessage(
+						{
+							type:"poll_start",
+							poll_data: pollData,
+							start_time: (new Date()).getTime()
+						}
+					);
+					pollBox.remove();
+				}
+			);
+			pollBox.append(sendPollToRoomButton);
+		}
+	}
+	else
+	{
+		sendPollToRoomButton?.remove();
+	}
+
+}
+
+function addVoteInfoBox(voteData)
+{
+	document.querySelector("#voteInfoBox")?.remove()
+	const voteInfoBox = document.createElement("div");
+	voteInfoBox.id = "voteInfoBox";
+
+	const header = document.createElement("h2");
+	header.textContent = "Vote Status";
+	voteInfoBox.append(header);
+
+	const timer = document.createElement("p");
+	timer.append(document.createTextNode("Time left: "));
+	const timeLeft = document.createElement("span");
+	timeLeft.id = "timeLeft";
+	if (!voteData["finished"])
+	{
+		timeLeft.textContent = Math.floor((voteData.start_time + voteData.duration*1000 - (new Date()).getTime())/1000);
+		const intervalId = setInterval(
+			() =>
+			{
+				if (timeLeft.textContent !== "Finished")
+				{
+					timeLeft.textContent = ((voteData.start_time + voteData.duration*1000 - (new Date()).getTime())/1000).toFixed(1);
+				}
+				else
+				{
+					clearInterval(intervalId);
+				}
+			},
+			100
+		);
+		setTimeout(
+			() =>
+			{
+				clearInterval(intervalId);
+				timeLeft.textContent = "Finished";
+			},
+			voteData.duration*1000
+		);
+	}
+	else
+	{
+		timeLeft.textContent = "Finished";
+	}
+	timer.append(timeLeft);
+	voteInfoBox.append(timer);
+
+	const responses = document.createElement("p");
+	const responseCount = document.createElement("span");
+	responseCount.id = "responseCount";
+	responses.append(responseCount);
+	responses.append(document.createTextNode(" responded"));
+	voteInfoBox.append(responses);
+
+	if (!voteData.finished)
+	{
+		const openBallotButton = document.createElement("button");
+		openBallotButton.id = "openBallotButton";
+		openBallotButton.textContent = "Open Vote Box";
+		openBallotButton.addEventListener("click", () => {addBallotPopout(voteData.poll)})
+		voteInfoBox.append(openBallotButton);
+	}
+
+	interfaceContainer.append(voteInfoBox);
+
+	updateVoteInfoBox(voteData);
+}
+
+function updateVoteInfoBox(voteData)
+{
+	let voteInfoBox = document.querySelector("#voteInfoBox");
+	if (voteInfoBox === null)
+	{
+		return addVoteInfoBox(voteData);
+	}
+
+	document.querySelector("#responseCount").textContent = `${voteData.response_count}/${voteData.num_voters}`;
+	if (voteData.finished)
+	{
+		const winnerHeader = document.createElement("h3");
+		winnerHeader.textContent = "Winner:";
+		voteInfoBox.append(winnerHeader);
+		const winnerLink = document.createElement("a");
+		winnerLink.href = voteData.winner.url;
+		winnerLink.textContent = voteData.winner.short_title;
+		voteInfoBox.append(winnerLink);
+
+		voteInfoBox.querySelector("#timeLeft").textContent = "Finished";
+
+		voteInfoBox.querySelector("#openBallotButton")?.remove();
+	}
+}
+
+function addBallotPopout(poll)
+{
+	document.querySelector("#ballotPopout")?.remove();
+	const ballotPopout = document.createElement("div");
+	ballotPopout.id = "ballotPopout";
+	const closeBoxButton = document.createElement("button");
+	closeBoxButton.id = "closeBallotPopout";
+	closeBoxButton.textContent = "×";
+	closeBoxButton.addEventListener("click",
+		(event) =>
+		{
+			ballotPopout.remove();
+		}
+	);
+	ballotPopout.append(closeBoxButton);
+
+	const header = document.createElement("h1");
+	header.textContent = "Next Quiz Poll";
+	ballotPopout.append(header);
+
+	const timer = document.createElement("p");
+	timer.append(document.createTextNode("Time left: "));
+	const timeLeft = document.createElement("span");
+	timeLeft.id = "timeLeft";
+	timeLeft.textContent = Math.floor((poll.start_time + poll.duration*1000 - (new Date()).getTime())/1000);
+	const intervalId = setInterval(
+		() =>
+		{
+			timeLeft.textContent = ((poll.start_time + poll.duration*1000 - (new Date()).getTime())/1000).toFixed(1);
+		},
+		100
+	);
+	setTimeout(
+		() =>
+		{
+			clearInterval(intervalId);
+			timeLeft.textContent = "Finished";
+			// disable all checkboxes and submit button
+			Array.from(ballotPopout.querySelectorAll(`input[type="checkbox"], #submitBallot`)).forEach(elem => elem.disabled = true);
+			setTimeout(()=>ballotPopout.remove(), 2000);
+		},
+		poll.duration*1000
+	);
+	timer.append(timeLeft);
+	ballotPopout.append(timer);
+
+	const entriesList = document.createElement("ol");
+	for (const entry of poll.entries)
+	{
+		const entryListItem = document.createElement("li");
+		entryListItem.textContent = entry.long_title;
+
+		const checkbox = document.createElement("input");
+		checkbox.type = "checkbox";
+		entryListItem.append(checkbox)
+		entriesList.append(entryListItem);
+	}
+	ballotPopout.append(entriesList);
+
+	const submitButton = document.createElement("button");
+	submitButton.textContent = "Submit";
+	submitButton.id = "submitBallot";
+	submitButton.addEventListener("click",
+		(event) =>
+		{
+			const votes = Array.from(ballotPopout.querySelectorAll(`input[type="checkbox"]`)).map(checkbox => Number(checkbox.checked));
+			port.postMessage({type: "poll_vote", votes: votes});
+			ballotPopout.remove();
+			document.querySelector("#openBallotButton")?.remove();
+		}
+	);
+	ballotPopout.append(submitButton);
+
+	document.body.insertBefore(ballotPopout, document.body.firstElementChild);
 }
 
 async function saveRoom(event)
@@ -1126,12 +1528,12 @@ function updateContextMenuHandling()
 			if (host && !hosts.includes(row.firstChild.textContent))
 			{
 				row.addEventListener("contextmenu", cmEventHandle);
-				row.style.cursor = "context-menu";
+				row.classList.add("hasContextMenu");
 			}
 			else
 			{
 				row.removeEventListener("contextmenu", cmEventHandle);
-				row.style.cursor = "default";
+				row.classList.remove("hasContextMenu");
 			}
 		}
 	);
@@ -1152,11 +1554,11 @@ function updateLeaderboardUrls()
 			const name = row.firstChild.textContent;
 			if (name !== username && (name in urls) && urls[name] !== window.location.pathname)
 			{
-				row.style.backgroundColor = "LightGrey";
+				row.classList.add("onDifferentPage");
 			}
 			else
 			{
-				row.style.backgroundColor = "unset";
+				row.classList.remove("onDifferentPage");
 			}
 		}
 	);
@@ -1240,25 +1642,8 @@ function startCountdown(send = false)
 {
 	const countdownContainer = document.createElement("div");
 	countdownContainer.id = "countdownContainer";
-	countdownContainer.style =
-	`
-		position: fixed;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		background-color: rgba(255,255,255,0.3);
-		z-index: 9999;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-	`;
 	
 	const countElement = document.createElement("span");
-	countElement.style =
-	`
-		font-size: 20vw;
-	`;
 
 	let count = 3;
 	countElement.textContent = count--;
@@ -1302,11 +1687,11 @@ function updateLiveScores(scores)
 				if (scores[nameElem.textContent]["finished"])
 				{
 					// This player has finished the quiz
-					row.style.backgroundColor = "LightGreen";
+					row.classList.add("finished");
 				}
 				else
 				{
-					row.style.backgroundColor = "unset";
+					row.classList.remove("finished");
 				}
 			}
 			else
@@ -1388,68 +1773,33 @@ function addLeaderboard(scores)
 
 	leaderboard = document.createElement("ol");
 	leaderboard.id = "leaderboard";
-	leaderboard.style =
-	`
-		width: 100%;
-		padding: 0;
-		margin: auto;
-	`;
 
 	const columnHeaders = document.createElement("h3");
-	columnHeaders.style =
-	`
-		margin: 0 0 1em 0;
-		display: grid;
-		grid-template-columns: 3fr 1fr 1fr;
-	`;
 	columnHeaders.appendChild(document.createElement("span"));
 	columnHeaders.lastChild.textContent = "Name";
 	columnHeaders.appendChild(document.createElement("span"));
 	columnHeaders.lastChild.textContent = "Wins";
-	columnHeaders.lastChild.style = `text-align: right;`;
 	columnHeaders.appendChild(document.createElement("span"));
 	columnHeaders.lastChild.textContent = "Points";
-	columnHeaders.lastChild.style = `text-align: right;`;
 
 	leaderboard.appendChild(columnHeaders);
 
 	for (const [name, {score, wins}] of Object.entries(scores))
 	{
 		const row = document.createElement("li");
-		row.style =
-		`
-			display: grid;
-			grid-template-columns: fit-content(calc(60% - 3em)) 1fr 20% 20%;
-			cusor: default;
-		`;
 
 		// Username
 		const usernameContainer = document.createElement("span");
 		usernameContainer.textContent = name;
-		usernameContainer.style =
-		`
-			overflow-wrap: anywhere;
-		`;
 		row.appendChild(usernameContainer);
 
 		// Host
 		row.appendChild(document.createElement("span"));
 		row.lastChild.textContent = (hosts.includes(name)) ? "host" : "";
-		row.lastChild.style =
-		`
-			font-size: 80%;
-			font-style: oblique;
-			padding-left: 0.5em;
-			align-self: end;
-		`;
 
 		// Wins
 		const winsContainer = document.createElement("span");
 		winsContainer.textContent = wins;
-		winsContainer.style =
-		`
-			text-align: right;
-		`;
 		row.appendChild(winsContainer);
 
 		// Points
@@ -1463,7 +1813,6 @@ function addLeaderboard(scores)
 
 	const leaderboardHeader = document.createElement("h2");
 	leaderboardHeader.id = "leaderboardHeader";
-	leaderboardHeader.style.margin = "0";
 	leaderboardHeader.textContent = "Overall Rankings";
 	interfaceBox.appendChild(leaderboardHeader);
 
@@ -1483,48 +1832,23 @@ function addLiveScores(scores)
 {
 	const liveScores = document.createElement("ol");
 	liveScores.id = "liveScores";
-	liveScores.style =
-	`
-		width: 100%;
-		max-width: 10em;
-		padding: 0;
-		margin: auto;
-	`;
 
 	const columnHeaders = document.createElement("h3");
-	columnHeaders.style =
-	`
-		margin: 0 0 1em 0;
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-	`;
 
 	columnHeaders.appendChild(document.createElement("span"));
 	columnHeaders.lastChild.textContent = "Name";
 	columnHeaders.appendChild(document.createElement("span"));
 	columnHeaders.lastChild.textContent = "Points";
-	columnHeaders.lastChild.style = `text-align: right;`;
 
 	liveScores.appendChild(columnHeaders);
 	
 	for (const [name, data] of Object.entries(scores))
 	{
 		const row = document.createElement("li");
-		row.style =
-		`
-			display: grid;
-			grid-template-columns: auto max-content;
-			background-color: inherit;
-		`;
 		row.appendChild(document.createTextNode(name));
 
 		const pointsContainer = document.createElement("span");
 		pointsContainer.textContent = data["score"];
-		pointsContainer.style =
-		`
-			text-align: right;
-
-		`;
 		row.appendChild(pointsContainer);
 
 		liveScores.appendChild(row);
@@ -1532,7 +1856,6 @@ function addLiveScores(scores)
 
 	const liveScoresHeader = document.createElement("h2");
 	liveScoresHeader.id = "liveScoresHeader";
-	liveScoresHeader.style.margin = "0";
 	liveScoresHeader.textContent = "Quiz Scores";
 	interfaceBox.insertBefore(liveScoresHeader, interfaceBox.querySelector(`#leaderboardHeader`));
 
@@ -1549,34 +1872,15 @@ function addSuggestionsList()
 
 	interfaceBox.appendChild(document.createElement("h3"));
 	interfaceBox.lastChild.id = "suggestionsHeader";
-	interfaceBox.lastChild.style =
-	`
-		margin: 0;
-	`;
 	interfaceBox.lastChild.textContent = "Suggestions";
 
 	const suggestionsList = document.createElement("ol");
 	suggestionsList.id = "suggestionsList";
-	suggestionsList.style =
-	`
-		width: 100%;
-		padding: 0;
-		margin: auto;
-		display: grid;
-		grid-row-gap: 0.75em;
-	`;
 
 	suggestions.forEach(
 		(suggestion) =>
 		{
 			const row = document.createElement("li");
-			row.style =
-			`
-				display: block;
-				grid-template-columns: max-content auto;
-				cursor: pointer;
-				text-decoration: underline;
-			`;
 			row.title = suggestion["long_title"];
 			row.textContent = `${suggestion["username"]}: ${suggestion["short_title"]}`;
 			row.addEventListener("click",
@@ -1627,46 +1931,18 @@ function displayContextMenu(event)
 	menu.id = "contextMenu";
 	menu.style =
 	`
-		position: absolute;
-		top: ${top}px;
-		left: ${left}px;
-
-		width: max-content;
-		border: 1px solid #888;
-
-		padding: 0.25em 0;
-
-		box-shadow: 2px 2px 3px rgba(0,0,0, 0.5);
-
-		list-style: none;
-		background-color: white;
-
-		display: grid;
-
-		font-size: 85%;
+		--top: ${top}px;
+		--left: ${left}px;
+		--translate-x: 0px;
+		--translate-y: 0px;
 	`;
-
-	const mOver = (event) =>
-	{
-		event.target.style.backgroundColor = "#ccc";
-	};
-	const mOut = (event) =>
-	{
-		event.target.style.backgroundColor = "unset";
-	}
 
 	let menuItem = document.createElement("li");
 	menuItem.textContent = `Make ${targetUsername} a host`;
-	menuItem.style =
-	`
-		padding: 0.25em 2em;
-	`;
-	menuItem.addEventListener("mouseover", mOver);
-	menuItem.addEventListener("mouseout", mOut);
 	menuItem.addEventListener("click",
 		(event) =>
 		{
-			port.postMessage({type: "host_promotion", username: targetUsername});
+			port.postMessage({type: "make_host", username: targetUsername});
 			removeContextMenu();
 		}
 	);
@@ -1674,8 +1950,6 @@ function displayContextMenu(event)
 
 	menuItem = menuItem.cloneNode(true);
 	menuItem.textContent = `Swap with ${targetUsername} as a host`;
-	menuItem.addEventListener("mouseover", mOver);
-	menuItem.addEventListener("mouseout", mOut);
 	menuItem.addEventListener("click",
 		(event) =>
 		{
@@ -1687,8 +1961,6 @@ function displayContextMenu(event)
 
 	menuItem = menuItem.cloneNode(true);
 	menuItem.textContent = `Remove ${targetUsername} from room`;
-	menuItem.addEventListener("mouseover", mOver);
-	menuItem.addEventListener("mouseout", mOut);
 	menuItem.addEventListener("click",
 		(event) =>
 		{
@@ -1700,13 +1972,13 @@ function displayContextMenu(event)
 
 
 	target.appendChild(menu);
-	if (menu.getBoundingClientRect().right > (window.innerWidth - 10))
+	if (menu.getBoundingClientRect().right > (window.innerWidth - 20))
 	{
-		menu.style.transform += `translateX(${window.innerWidth - menu.getBoundingClientRect().right - 10}px)`;
+		menu.style.setProperty("--translate-x", `${window.innerWidth - menu.getBoundingClientRect().right - 20}px`);
 	}
 	if (menu.getBoundingClientRect().bottom > (window.innerHeight - 10))
 	{
-		menu.style.transform += "translateY(-100%)";
+		menu.style.setProperty("--translate-y", "-100%");
 	}
 
 
@@ -1824,11 +2096,6 @@ function addCreateRoomForm()
 	form.id = "createRoomForm";
 	form.autocomplete = "off";
 	form.addEventListener("submit", createRoom);
-	form.style = 
-	`
-		display: flex;
-		flex-direction: column;
-	`;
 
 	const heading = document.createElement("h3");
 	heading.textContent = "Create a Room";
@@ -1878,21 +2145,6 @@ function addCreateRoomForm()
 
 	form.appendChild(button);
 
-	Array.from(form.children).forEach(
-		(child) =>
-		{
-			if (child !== heading)
-			{
-				child.style =
-				`
-					width: min(100%, 10em);
-					box-sizing: border-box;
-					margin: 0 auto;
-				`;
-			}
-		}
-	);
-
 	interfaceBox.appendChild(form);
 }
 
@@ -1902,11 +2154,6 @@ function addJoinRoomForm()
 	form.id = "joinRoomForm";
 	form.autocomplete = "off";
 	form.addEventListener("submit", joinRoom);
-	form.style = 
-	`
-		display: flex;
-		flex-direction: column;
-	`;
 
 	const heading = document.createElement("h3");
 	heading.textContent = "Join a Room";
@@ -1988,21 +2235,6 @@ function addJoinRoomForm()
 
 	form.appendChild(button);
 
-	Array.from(form.children).forEach(
-		(child) =>
-		{
-			if (child !== heading)
-			{
-				child.style =
-				`
-					width: min(100%, 10em);
-					box-sizing: border-box;
-					margin: 0 auto;
-				`;
-			}
-		}
-	);
-
 	interfaceBox.appendChild(form);
 }
 
@@ -2016,11 +2248,6 @@ function addLoadRoomForm(storedSaveNames)
 	form.id = "loadRoomForm";
 	form.autocomplete = "off";
 	form.addEventListener("submit", (event) => {loadRoom(event, form)});
-	form.style = 
-	`
-		display: flex;
-		flex-direction: column;
-	`;
 
 	const heading = document.createElement("h3");
 	heading.textContent = "Load a Saved Room";
@@ -2058,21 +2285,6 @@ function addLoadRoomForm(storedSaveNames)
 	);
 
 	form.appendChild(button);
-
-	Array.from(form.children).forEach(
-		(child) =>
-		{
-			if (child !== heading)
-			{
-				child.style =
-				`
-					width: min(100%, 10em);
-					box-sizing: border-box;
-					margin: 0 auto;
-				`;
-			}
-		}
-	);
 
 	interfaceBox.appendChild(form);
 }
