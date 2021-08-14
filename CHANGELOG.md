@@ -9,6 +9,9 @@ Changelog
   - Popup box for users to submit their votes.
   - Vote progress information box.
 
+### Changed
+- Moved styling into external stylesheets.
+
 [v2.0.0] - 2021-03-22
 ---------------------
 [GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v2.0.0)
