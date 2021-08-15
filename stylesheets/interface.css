@@ -42,32 +42,55 @@
 }
 
 
-#leaderboard
+#leaderboard,
+#liveScores
 {
 	width: 100%;
 	padding: 0;
 	margin: auto;
 }
-	#leaderboard h2
+#liveScores
+{
+	max-width: 10em;
+}
+	#leaderboard h2,
+	#liveScores h2
 	{
 		margin: 0;
 	}
-	#leaderboard h3
+	#leaderboard h3,
+	#liveScores h3
 	{
 		margin: 0 0 1em 0;
 		display: grid;
-		grid-template-columns: 3fr 1fr 1fr;
 		text-align: right;
 	}
-	#leaderboard h3 :first-child
+	#liveScores h3
+	{
+		grid-template-columns: 1fr 1fr;
+	}
+	#leaderboard h3
+	{
+		grid-template-columns: 3fr 1fr 1fr;
+	}
+	#leaderboard h3 :first-child,
+	#liveScores h3 :first-child
 	{
 		text-align: left;
 	}
-	#leaderboard > li
+	#leaderboard > li,
+	#liveScores > li
 	{
 		display: grid;
-		grid-template-columns: fit-content(calc(60% - 3em)) 1fr 20% 20%;
 		cursor: default;
+	}
+	#leaderboard > li
+	{
+		grid-template-columns: fit-content(calc(60% - 3em)) 1fr 20% 20%;
+	}
+	#liveScores > li
+	{
+		grid-template-columns: auto max-content;
 	}
 		#leaderboard > li span:first-child /* username */
 		{
@@ -80,54 +103,25 @@
 			padding-left: 0.5em;
 			align-self: end;
 		}
-		#leaderboard > li span:nth-child(3) /* wins */
-		{
-			text-align: right;
-		}
+		#leaderboard > li span:nth-child(3), /* wins */
 		#leaderboard > li span:nth-child(4) /* points */
 		{
 			text-align: right;
 		}
-	#leaderboard > li.hasContextMenu
-	{
-		cursor: context-menu;
-	}
 	#leaderboard > li.onDifferentPage
 	{
 		background-color: lightgrey;
-	}
-
-#liveScores
-{
-	width: 100%;
-	max-width: 10em;
-	padding: 0;
-	margin: auto;
-}
-	#liveScores h2
-	{
-		margin: 0;
-	}
-	#liveScores h3
-	{
-		margin: 0 0 1em 0;
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-	}
-	#liveScores h3 :last-child
-	{
-		text-align: right;
-	}
-	#liveScores > li
-	{
-		display: grid;
-		grid-template-columns: auto max-content;
-		background-color: inherit;
 	}
 	#liveScores > li.finished
 	{
 		background-color: lightgreen;
 	}
+
+
+.hasContextMenu
+{
+	cursor: context-menu;
+}
 
 .errorMessage
 {
