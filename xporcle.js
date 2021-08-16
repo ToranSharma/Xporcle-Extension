@@ -984,6 +984,8 @@ function addCreatePollBox(pollData)
 	header.textContent = "Next Quiz Poll";
 	pollBox.append(header);
 
+	pollBox.append(collapseToggle());
+
 	if (onQuizPage)
 	{
 		// Get info about quiz from page
@@ -1191,6 +1193,8 @@ function addVoteInfoBox(voteData)
 	const header = document.createElement("h2");
 	header.textContent = "Vote Status";
 	voteInfoBox.append(header);
+
+	voteInfoBox.append(collapseToggle());
 
 	const timer = document.createElement("p");
 	timer.append(document.createTextNode("Time left: "));
@@ -2332,4 +2336,13 @@ function closeButton(elementToClose, closeFunction = null)
 	);
 
 	return button;
+}
+
+function collapseToggle()
+{
+	const toggle = document.createElement("input");
+	toggle.type = "checkbox";
+	toggle.classList.add("toggle");
+
+	return toggle;
 }

@@ -5,6 +5,7 @@ Changelog
 ------------
 ### Added
 - Close button to Create Poll and Vote Info boxes.
+- Collapse toggles to Create Poll and vote Info boxes.
 
 ### Changed
 - Xporcle interface now scrollable if longer than available space.
