@@ -5,6 +5,16 @@ Changelog
 ------------
 -
 
+[v2.2.0] - 2021-08-16
+---------------------
+[GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v2.2.0)
+### Added
+- Close button to Create Poll and Vote Info boxes.
+- Collapse toggles to Create Poll and vote Info boxes.
+
+### Changed
+- Xporcle interface now scrollable if longer than available space.
+
 
 [v2.1.0] - 2021-08-14
 ---------------------
@@ -139,6 +149,7 @@ Changelog
 - Options page popup placeholder.
 
 [Unreleased]: https://github.com/ToranSharma/Xporcle-Extension/compare/master...develop
+[v2.2.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v2.1.0...v2.2.0
 [v2.1.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v2.0.0...v2.1.0
 [v2.0.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.2.1...v2.0.0
 [v1.2.1]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.2.0...v1.2.1
