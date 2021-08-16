@@ -304,6 +304,7 @@
 .closeButton
 {
 	appearance: none;
+	background: none;
 	padding: 0;
 	border: 0;
 	position: absolute;
@@ -311,9 +312,14 @@
 	top: 1rem;
 	color: grey;
 	cursor: pointer;
-	background: none;
+	width: 1rem;
+	height: 1rem;
+	text-align:center;
+}
+.closeButton::after
+{
+	content: "\02A2F";
 	font-size: 150%;
-	line-height: 1rem;
 }
 .toggle
 {
@@ -325,24 +331,38 @@
 	right: 2rem;
 	top: 1rem;
 	color: grey;
-	font-size: 110%;
-	line-height: 0.85rem;
+	cursor: pointer;
 	height: 1rem;
 	width: 1rem;
 	text-align:center;
 	transform: rotate(0deg);
 	transition: transform 0.5s;
 }
+.toggle::after
+{
+	content: "\02228";
+	font-weight: bolder;
+}
 .toggle:checked
 {
 	transform: rotate(90deg);
-}
-.toggle::after
-{
-	content: "∨";
 }
 .toggle:checked ~ *
 {
 	display: none;
 	visibility: hidden;
 }
+
+.closeButton::after,
+.toggle::after
+{
+	position: absolute;
+	top: 0.5rem;
+	left: 0.5rem;
+	line-height:1rem;
+	height: 1rem;
+	width: 1rem;
+	transform: translate(-50%, -50%);
+	text-align: center;
+}
+
