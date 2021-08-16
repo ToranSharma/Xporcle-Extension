@@ -2322,7 +2322,6 @@ function closeButton(elementToClose, closeFunction = null)
 {
 	const button = document.createElement("button");
 	button.classList.add("closeButton");
-	button.textContent = "×";
 
 	button.addEventListener("click",
 		(event) =>
