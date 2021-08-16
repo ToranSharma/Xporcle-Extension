@@ -3,7 +3,11 @@ Changelog
 
 [Unreleased]
 ------------
--
+### Added
+- Close button to Create Poll and Vote Info boxes.
+
+### Changed
+- Xporcle interface now scrollable if longer than available space.
 
 
 [v2.1.0] - 2021-08-14

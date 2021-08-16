@@ -8,6 +8,13 @@
 	overflow: visible;
 	z-index: 999;
 }
+	#interfaceContainer > #sectionContainer
+	{
+		height: calc(100vh - 67px);
+		width: calc( -10px + ( 100vw - 960px) / 2);
+		max-width: 400px;
+		overflow: auto;
+	}
 	#interfaceContainer form
 	{
 		display: flex;
@@ -23,12 +30,11 @@
 
 		}
 
-#interfaceContainer>div
+.interfaceSection
 {
-	width: calc( -10px + ( 100vw - 960px) / 2);
+	width: 100%;
 	padding: 0.5em;
 	box-sizing: border-box;
-	max-width: 400px;
 	list-style: none;
 	border-width: 1px;
 	border-style: solid;
@@ -39,7 +45,12 @@
 	display: grid;
 	row-gap: 1em;
 	grid-template-columns: 100%;
+	position: relative;
 }
+	.interfaceSection p
+	{
+		margin: 0;
+	}
 
 
 #leaderboard,
@@ -227,7 +238,6 @@
 	top: 50%;
 	transform: translate(-50%,-50%);
 	width: 40vw;
-	min-height: 40vw;
 	z-index: 999999;
 	border-radius: 0.5em;
 	border: 1px solid #888;
@@ -235,20 +245,8 @@
 	row-gap: 1em;
 	grid-template-columns: 100%;
 	padding: 0.5em;
+	box-shadow: 0 0 100vmax 30vmax white;
 }
-	#ballotPopout #closeBallotPopout
-	{
-		appearance: none;
-		padding: 0;
-		border: 0;
-		position: absolute;
-		right: 1rem;
-		top: 1rem;
-		color: grey;
-		cursor: pointer;
-		background: none;
-		font-size: 150%;
-	}
 	#ballotPopout ol
 	{
 		padding: 0;
@@ -256,9 +254,21 @@
 		#ballotPopout ol li
 		{
 			display: grid;
-			grid-template-columns: 1fr 1em;
+			grid-template-columns: 1fr auto;
+			grid-column-gap: 1em;
 		    align-items: center;
+			border: solid grey;
+			border-width: 1px 0 0 0;
 		}
+		#ballotPopout ol li:first-child
+		{
+			border-width: 0;
+		}
+			#ballotPopout ol li input
+			{
+				width: 1.5em;
+				height: 1.5em;
+			}
 
 #contextMenu
 {
@@ -290,3 +300,17 @@
 	{
 		background-color: #ccc;
 	}
+
+.closeButton
+{
+	appearance: none;
+	padding: 0;
+	border: 0;
+	position: absolute;
+	right: 1rem;
+	top: 1rem;
+	color: grey;
+	cursor: pointer;
+	background: none;
+	font-size: 150%;
+}

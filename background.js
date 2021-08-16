@@ -103,6 +103,11 @@ chrome.runtime.onConnect.addListener(
 					{
 						saveName = message["saveName"];
 					}
+					else if (message.type === "clearVoteData")
+					{
+						voteData = {};
+						voted = false;
+					}
 					else
 					{
 						// This is a message to forward on to the server

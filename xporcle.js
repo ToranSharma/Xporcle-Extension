@@ -3,6 +3,7 @@ let port = null;
 let onQuizPage = null;
 let interfaceBox = null;
 let interfaceContainer = null;
+let sectionContainer = null;
 let roomCode = null;
 let username = null;
 let host = null;
@@ -300,6 +301,9 @@ function addInterfaceBox()
 		`
 			--center-content-padding-right: ${window.getComputedStyle(centerContent).paddingRight};
 		`;
+		sectionContainer = document.createElement("div");
+		sectionContainer.id = "sectionContainer";
+		interfaceContainer.append(sectionContainer);
 
 		if (gameHeader !== null)
 		{
@@ -319,7 +323,8 @@ function addInterfaceBox()
 	{
 		interfaceBox = document.createElement("div");
 		interfaceBox.id = "interfaceBox";
-		interfaceContainer.appendChild(interfaceBox);
+		interfaceBox.classList.add("interfaceSection");
+		sectionContainer.appendChild(interfaceBox);
 	}
 }
 
@@ -971,7 +976,10 @@ function addCreatePollBox(pollData)
 {
 	const pollBox = document.createElement("div");
 	pollBox.id = "pollBox";
+	pollBox.classList.add("interfaceSection");
 	
+	pollBox.append(closeButton(pollBox));
+
 	const header = document.createElement("h2");
 	header.textContent = "Next Quiz Poll";
 	pollBox.append(header);
@@ -1092,12 +1100,17 @@ function addCreatePollBox(pollData)
 		pollBox.append(sendPollToRoomButton);
 	}
 
-	interfaceContainer.insertBefore(pollBox, interfaceBox.nextElementSibling);
+	sectionContainer.insertBefore(pollBox, interfaceBox.nextElementSibling);
 }
 
 function updateCreatePollBox(pollData)
 {
 	const pollBox = document.querySelector("#pollBox");
+	if (pollBox === null)
+	{
+		return addCreatePollBox(pollData);
+	}
+
 	// Clear entires
 	pollBox.querySelectorAll("ol li").forEach(entry => entry.remove());
 	// Add updated entries
@@ -1161,6 +1174,19 @@ function addVoteInfoBox(voteData)
 	document.querySelector("#voteInfoBox")?.remove()
 	const voteInfoBox = document.createElement("div");
 	voteInfoBox.id = "voteInfoBox";
+	voteInfoBox.classList.add("interfaceSection");
+
+	voteInfoBox.append(
+		closeButton(voteInfoBox,
+			(event) =>
+			{
+				if (document.querySelector("#timeLeft")?.textContent === "Finished")
+				{
+					port.postMessage({type: "clearVoteData"});
+				}
+			}
+		)
+	);
 
 	const header = document.createElement("h2");
 	header.textContent = "Vote Status";
@@ -1219,17 +1245,24 @@ function addVoteInfoBox(voteData)
 		voteInfoBox.append(openBallotButton);
 	}
 
-	interfaceContainer.append(voteInfoBox);
+	sectionContainer.append(voteInfoBox);
 
 	updateVoteInfoBox(voteData);
 }
 
 function updateVoteInfoBox(voteData)
 {
-	let voteInfoBox = document.querySelector("#voteInfoBox");
+	const voteInfoBox = document.querySelector("#voteInfoBox");
 	if (voteInfoBox === null)
 	{
-		return addVoteInfoBox(voteData);
+		if (voteData.finished)
+		{
+			return addVoteInfoBox(voteData);
+		}
+		else
+		{
+			return false;
+		}
 	}
 
 	document.querySelector("#responseCount").textContent = `${voteData.response_count}/${voteData.num_voters}`;
@@ -1254,16 +1287,8 @@ function addBallotPopout(poll)
 	document.querySelector("#ballotPopout")?.remove();
 	const ballotPopout = document.createElement("div");
 	ballotPopout.id = "ballotPopout";
-	const closeBoxButton = document.createElement("button");
-	closeBoxButton.id = "closeBallotPopout";
-	closeBoxButton.textContent = "×";
-	closeBoxButton.addEventListener("click",
-		(event) =>
-		{
-			ballotPopout.remove();
-		}
-	);
-	ballotPopout.append(closeBoxButton);
+
+	ballotPopout.append(closeButton(ballotPopout));
 
 	const header = document.createElement("h1");
 	header.textContent = "Next Quiz Poll";
@@ -2287,4 +2312,24 @@ function addLoadRoomForm(storedSaveNames)
 	form.appendChild(button);
 
 	interfaceBox.appendChild(form);
+}
+
+function closeButton(elementToClose, closeFunction = null) 
+{
+	const button = document.createElement("button");
+	button.classList.add("closeButton");
+	button.textContent = "×";
+
+	button.addEventListener("click",
+		(event) =>
+		{
+			if (closeFunction !== null)
+			{
+				closeFunction(event);
+			}
+			elementToClose.remove();
+		}
+	);
+
+	return button;
 }
