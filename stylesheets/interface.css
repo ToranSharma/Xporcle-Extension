@@ -366,3 +366,15 @@
 	text-align: center;
 }
 
+li[draggable="true"]
+{
+	cursor: move;
+}
+.moving
+{
+	color: transparent;	
+}
+li.moving::marker
+{
+	color: black;
+}

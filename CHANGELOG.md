@@ -3,7 +3,10 @@ Changelog
 
 [Unreleased]
 ------------
--
+### Added
+- Quiz Queue
+  - Button for hosts to add the quiz they are on to the queue.
+  - Draggable (for hosts) list of quizzes in the queue.
 
 [v2.2.0] - 2021-08-16
 ---------------------
