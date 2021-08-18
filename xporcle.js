@@ -2428,7 +2428,7 @@ function updateQuizQueue(queue)
 
 	const queueList = quizQueueBox.querySelector("ol");
 	Array.from(queueList.querySelectorAll("li"))
-		.filter(li => queue.some(queuedQuiz => queuedQuiz.short_title === li.textContent))
+		.filter(li => !queue.some(queuedQuiz => queuedQuiz.short_title === li.textContent))
 		.forEach(li => li.remove());
 
 	queue.forEach(
@@ -2441,6 +2441,16 @@ function updateQuizQueue(queue)
 				li.textContent = queuedQuiz.short_title;
 				if (host)
 				{
+					// Add Remove Button
+					li.append(
+						closeButton(li,
+							(event) =>
+							{
+								port.postMessage({type: "remove_from_queue", quiz: queuedQuiz});
+							}
+						)
+					);
+					// Make list draggable to reorder queue.
 					li.setAttribute("draggable", "true");
 					li.addEventListener("dragstart",
 						(event) =>
@@ -2454,7 +2464,7 @@ function updateQuizQueue(queue)
 								position: absolute;
 								top: -2000vh;
 								left: -2000vw;
-								width: ${event.target.clientWidth}px;
+								width: calc(${event.target.clientWidth}px - ${window.getComputedStyle(event.target).paddingRight});
 							`;
 							dragImage.textContent = event.target.textContent;
 							document.body.append(dragImage);

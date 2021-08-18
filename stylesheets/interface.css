@@ -366,15 +366,43 @@
 	text-align: center;
 }
 
-li[draggable="true"]
+
+#quizQueueBox li[draggable="true"]
 {
 	cursor: move;
+	position: relative;
+	padding-right: 2rem;
 }
-.moving
+#quizQueueBox li.moving
 {
 	color: transparent;	
 }
-li.moving::marker
+#quizQueueBox li.moving::marker
 {
 	color: black;
 }
+	#quizQueueBox li .closeButton
+	{
+		display: none;
+		visibility: hidden;
+		top: 0;
+	}
+	#quizQueueBox li:hover .closeButton
+	{
+		display: unset;
+		visibility: visible;
+	}
+	#quizQueueBox li:active .closeButton,
+	#quizQueueBox li.moving .closeButton,
+	#quizQueueBox li.moving:hover .closeButton,
+	#quizQueueBox li.moving ~ li .closeButton
+	{
+		display: none;
+		visibility: hidden;
+	}
+	#quizQueueBox li .closeButton:hover
+	{
+		display: unset;
+		visibility: visible;
+	}
+

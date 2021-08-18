@@ -7,6 +7,7 @@ Changelog
 - Quiz Queue
   - Button for hosts to add the quiz they are on to the queue.
   - Draggable (for hosts) list of quizzes in the queue.
+  - Remove button for hosts to remove quizzes from the queue.
 
 [v2.2.0] - 2021-08-16
 ---------------------
