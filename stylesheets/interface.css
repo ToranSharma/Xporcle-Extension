@@ -349,8 +349,8 @@
 }
 .toggle:checked ~ *
 {
-	display: none;
-	visibility: hidden;
+	display: none !important;
+	visibility: hidden !important;
 }
 
 .closeButton::after,
@@ -367,42 +367,47 @@
 }
 
 
-#quizQueueBox li[draggable="true"]
+#quizQueueBox ol
 {
-	cursor: move;
-	position: relative;
-	padding-right: 2rem;
+	display: grid;
+	grid-auto-rows: 1fr;
 }
-#quizQueueBox li.moving
-{
-	color: transparent;	
-}
-#quizQueueBox li.moving::marker
-{
-	color: black;
-}
-	#quizQueueBox li .closeButton
+	#quizQueueBox li[draggable="true"]
 	{
-		display: none;
-		visibility: hidden;
-		top: 0;
+		cursor: move;
+		position: relative;
+		padding-right: 2rem;
 	}
-	#quizQueueBox li:hover .closeButton
+	#quizQueueBox li.moving
 	{
-		display: unset;
-		visibility: visible;
+		color: transparent;
 	}
-	#quizQueueBox li:active .closeButton,
-	#quizQueueBox li.moving .closeButton,
-	#quizQueueBox li.moving:hover .closeButton,
-	#quizQueueBox li.moving ~ li .closeButton
+	#quizQueueBox li.moving::marker
 	{
-		display: none;
-		visibility: hidden;
+		color: black;
 	}
-	#quizQueueBox li .closeButton:hover
-	{
-		display: unset;
-		visibility: visible;
-	}
+		#quizQueueBox li .closeButton
+		{
+			display: none;
+			visibility: hidden;
+			top: 0;
+		}
+		#quizQueueBox li:hover .closeButton
+		{
+			display: unset;
+			visibility: visible;
+		}
+		#quizQueueBox li:active .closeButton,
+		#quizQueueBox li.moving .closeButton,
+		#quizQueueBox li.moving:hover .closeButton,
+		#quizQueueBox li.moving ~ li .closeButton
+		{
+			display: none;
+			visibility: hidden;
+		}
+		#quizQueueBox li .closeButton:hover
+		{
+			display: unset;
+			visibility: visible;
+		}
 
