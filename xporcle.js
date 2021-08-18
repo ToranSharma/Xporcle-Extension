@@ -144,7 +144,8 @@ async function init()
 		const pollData =  Object.keys(statusResponse["poll_data"]).length !== 0 ? statusResponse["poll_data"] : undefined;
 		const voteData =  Object.keys(statusResponse["vote_data"]).length !== 0 ? statusResponse["vote_data"] : undefined;
 		const queue =  Object.keys(statusResponse["queue"]).length !== 0 ? statusResponse["queue"] : undefined;
-		onRoomConnect(statusResponse["scores"], pollData, voteData, queue);
+		const queueInterval = statusResponse["queue_interval"];
+		onRoomConnect(statusResponse["scores"], pollData, voteData, queue, queueInterval);
 	}
 	else
 	{
@@ -472,7 +473,7 @@ function processMessage(message)
 			if (message["queue"] !== null)
 			{
 				document.querySelector("#quizQueueBox")?.remove();
-				addQuizQueueBox(message["queue"]);
+				addQuizQueueBox(message["queue"], message["queue_interval"]);
 			}
 
 			if (message["poll_data"] !== null)
@@ -538,7 +539,7 @@ function processMessage(message)
 			updateVoteInfoBox(message["vote_data"]);
 			break;
 		case "queue_update":
-			updateQuizQueue(message["queue"]);
+			updateQuizQueue(message["queue"], message["queue_interval"]);
 			break;
 	}
 
@@ -787,7 +788,7 @@ async function loadRoom(event, form)
 
 	onRoomConnect();
 }
-function onRoomConnect(existingScores, existingPollData, currentVoteData, queue)
+function onRoomConnect(existingScores, existingPollData, currentVoteData, queue, queueInterval)
 {
 	// Set up message handing if not done already.
 	if (!port.onMessage.hasListener(processMessage))
@@ -877,7 +878,7 @@ function onRoomConnect(existingScores, existingPollData, currentVoteData, queue)
 	// Quiz Queue
 	if (queue)
 	{
-		addQuizQueueBox(queue);
+		addQuizQueueBox(queue, queueInterval);
 	}
 
 
@@ -1093,7 +1094,7 @@ function addCreatePollBox(pollData)
 	pollDurationInput.addEventListener("change",
 		(event) =>
 		{
-			pollData.duration = Math.max(10, Math.min(pollDurationInput.value, 60));
+			pollData.duration = Math.max(10, Math.min(Number(pollDurationInput.value), 60));
 			// Send updated data
 			port.postMessage({type:"poll_data_update", poll_data: pollData});
 		}
@@ -2396,7 +2397,7 @@ function addQuizToQueueButton()
 	return button;
 }
 
-function addQuizQueueBox(queue = [])
+function addQuizQueueBox(queue = [], queueInterval)
 {
 	const quizQueueBox = document.createElement("div");
 	quizQueueBox.classList.add("interfaceSection");
@@ -2413,12 +2414,47 @@ function addQuizQueueBox(queue = [])
 	const queueList = document.createElement("ol");
 	quizQueueBox.append(queueList);
 
+	if (host)
+	{
+		const queueAutoChangeForm = document.createElement("form");
+
+		const autoChangeToggleInput = document.createElement("input");
+		autoChangeToggleInput.type = "checkbox";
+		autoChangeToggleInput.checked = !!queueInterval;
+		const intervalLabel = document.createElement("label");
+		intervalLabel.textContent = "auto change quiz after ";
+		const intervalInput = document.createElement("input");
+		intervalInput.type = "number";
+		intervalInput.min = 10;
+		intervalInput.max = 60*5;
+		intervalInput.value = queueInterval ?? "60";
+		intervalInput.disabled = !autoChangeToggleInput.checked;
+		[autoChangeToggleInput, intervalInput].forEach(
+			(input) =>
+			{
+				input.addEventListener("change",
+					(event) =>
+					{
+						intervalInput.disabled = !autoChangeToggleInput.checked;
+						intervalInput.value = Math.max(10, Math.min(Number(intervalInput.value), 60*5));
+						const newQueueInterval = autoChangeToggleInput.checked ? Number(intervalInput.value) : null;
+						port.postMessage({type: "change_queue_interval", queue_interval: newQueueInterval});
+					}
+				);
+			}
+		);
+		queueAutoChangeForm.append(
+			autoChangeToggleInput, intervalLabel, intervalInput,  document.createTextNode("s")
+		);
+		quizQueueBox.append(queueAutoChangeForm);
+	}
+
 	sectionContainer.append(quizQueueBox);
 
-	updateQuizQueue(queue);
+	updateQuizQueue(queue, queueInterval);
 }
 
-function updateQuizQueue(queue)
+function updateQuizQueue(queue, queueInterval)
 {
 	let quizQueueBox = document.querySelector("#quizQueueBox");
 	if (queue.length === 0)
@@ -2427,7 +2463,7 @@ function updateQuizQueue(queue)
 	}
 	if (quizQueueBox === null)
 	{
-		return addQuizQueueBox(queue);
+		return addQuizQueueBox(queue, queueInterval);
 	}
 
 
@@ -2541,4 +2577,14 @@ function updateQuizQueue(queue)
 			queueList.append(li);
 		}
 	);
+
+	if (host)
+	{
+		// Update Queue Interval
+		const autoChangeToggleInput = quizQueueBox.querySelector(`form input[type="checkbox"]`);
+		const intervalInput = quizQueueBox.querySelector(`form input[type="number"]`);
+		autoChangeToggleInput.checked = !!queueInterval;
+		intervalInput.disabled = !queueInterval;
+		intervalInput.value = queueInterval ?? intervalInput.value;
+	}
 }

@@ -15,20 +15,6 @@
 		max-width: 400px;
 		overflow: auto;
 	}
-	#interfaceContainer form
-	{
-		display: flex;
-		flex-direction: column;
-	}
-		#interfaceContainer form input,
-		#interfaceContainer form button,
-		#interfaceContainer form select
-		{
-			width: min(100%, 10em);
-			box-sizing: border-box;
-			margin: 0 auto;
-
-		}
 
 .interfaceSection
 {
@@ -52,6 +38,20 @@
 		margin: 0;
 	}
 
+#interfaceBox form
+{
+	display: flex;
+	flex-direction: column;
+}
+	#interfaceBox form input,
+	#interfaceBox form button,
+	#interfaceBox form select
+	{
+		width: min(100%, 10em);
+		box-sizing: border-box;
+		margin: 0 auto;
+
+	}
 
 #leaderboard,
 #liveScores
@@ -432,3 +432,16 @@
 			display: unset;
 			visibility: visible;
 		}
+#quizQueueBox form
+{
+	display: block;
+}
+	#quizQueueBox form input
+	{
+		display: inline;
+		vertical-align: baseline;
+	}
+	#quizQueueBox form input[type="number"]
+	{
+		width: 3.5em;
+	}
