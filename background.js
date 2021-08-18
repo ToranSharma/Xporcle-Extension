@@ -214,6 +214,7 @@ function forwardMessage(event)
 		if (message["success"])
 		{
 			hosts = message["hosts"];
+			queue = message["queue"];
 		}
 		else
 		{
