@@ -2446,6 +2446,11 @@ function updateQuizQueue(queue)
 				li.textContent = queuedQuiz.short_title;
 				if (host)
 				{
+					// Add go to button
+					const goToButton = document.createElement("button");
+					goToButton.classList.add("goTo");
+					goToButton.addEventListener("click", (event) => {window.location = queuedQuiz.url});
+					li.append(goToButton);
 					// Add Remove Button
 					li.append(
 						closeButton(li,
@@ -2471,7 +2476,7 @@ function updateQuizQueue(queue)
 								left: -2000vw;
 								width: calc(${event.target.clientWidth}px - ${window.getComputedStyle(event.target).paddingRight});
 							`;
-							dragImage.textContent = event.target.textContent;
+							dragImage.textContent = queuedQuiz.short_title;
 							document.body.append(dragImage);
 
 							event.dataTransfer.setDragImage(dragImage, 30, dragImage.clientHeight/2);
