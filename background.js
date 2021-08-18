@@ -244,7 +244,8 @@ function forwardMessage(event)
 	{
 		host = true;
 		urls = message["urls"];
-		poll_data = message["poll_data"] ?? {}
+		poll_data = message["poll_data"] ?? {};
+		queue = message["queue"];
 	}
 	else if (
 		messageType === "users_update"
