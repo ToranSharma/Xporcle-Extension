@@ -371,6 +371,7 @@
 {
 	display: grid;
 	grid-auto-rows: 1fr;
+	margin: 0;
 }
 	#quizQueueBox li[draggable="true"]
 	{

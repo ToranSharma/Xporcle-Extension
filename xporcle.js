@@ -2421,10 +2421,15 @@ function addQuizQueueBox(queue = [])
 function updateQuizQueue(queue)
 {
 	let quizQueueBox = document.querySelector("#quizQueueBox");
+	if (queue.length === 0)
+	{
+		return quizQueueBox?.remove();
+	}
 	if (quizQueueBox === null)
 	{
 		return addQuizQueueBox(queue);
 	}
+
 
 	const queueList = quizQueueBox.querySelector("ol");
 	Array.from(queueList.querySelectorAll("li"))
