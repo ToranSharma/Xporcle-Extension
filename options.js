@@ -101,6 +101,7 @@ function getOptions(firstLoad=false)
 					document.getElementById(option).checked = options[option];
 					break;
 				case "string":
+				case "number":
 					document.getElementById(option).value = options[option];
 					break;
 			}
@@ -119,6 +120,10 @@ function saveOptions()
 		if (element.type === "checkbox")
 		{
 			options[element.id] = element.checked;
+		}
+		else if (element.type === "number")
+		{
+			options[element.id] = Number(element.value);
 		}
 		else
 		{

@@ -24,6 +24,14 @@
 			<input class="option" id="blurRoomCode" type="checkbox" />
 			<label for="blurRoomCode">Blur Room Code</label>
 		</li>
+		<li class="labelFirst containsTime">
+			<label for="defaultPollDuration containsTime">Default Poll Duration</label>
+			<input class="option" id="defaultPollDuration" type="number" value="30" min="10" max="60" />
+		</li>
+		<li class="labelFirst containsTime">
+			<label for="defaultQuizQueueInterval">Default Quiz Queue Interval</label>
+			<input class="option" id="defaultQuizQueueInterval" type="number" value="60" min="10" max="300" />
+		</li>
 	</ul>
 	<button id="enableAll">Enable all</button>
 	<button id="disableAll">Disable all</button>
