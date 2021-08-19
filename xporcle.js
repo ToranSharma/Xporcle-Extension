@@ -143,7 +143,9 @@ async function init()
 
 		const pollData =  Object.keys(statusResponse["poll_data"]).length !== 0 ? statusResponse["poll_data"] : undefined;
 		const voteData =  Object.keys(statusResponse["vote_data"]).length !== 0 ? statusResponse["vote_data"] : undefined;
-		onRoomConnect(statusResponse["scores"], pollData, voteData);
+		const queue =  Object.keys(statusResponse["queue"]).length !== 0 ? statusResponse["queue"] : undefined;
+		const queueInterval = statusResponse["queue_interval"];
+		onRoomConnect(statusResponse["scores"], pollData, voteData, queue, queueInterval);
 	}
 	else
 	{
@@ -353,9 +355,7 @@ function resetInterface(errorElement, lastUsername, lastCode)
 	setQuizStartProvention(false);
 	document.querySelectorAll("#startCountdown").forEach(elm => elm.remove());
 
-	document.querySelector("#pollBox")?.remove();
-	document.querySelector("#voteInfoBox")?.remove();
-	document.querySelector("#ballotPopout")?.remove();
+	document.querySelectorAll(".interfaceSection:not(#interfaceBox)").forEach(section => section.remove());
 
 	init().then(
 		() =>
@@ -442,7 +442,16 @@ function processMessage(message)
 				updateLeaderboardUrls();
 
 				suggestions = [];
-				document.querySelectorAll(`#changeQuizButton, #suggestionsHeader, #suggestionsList, #saveButton, #createPollButton`).forEach(element => element.remove());
+				document.querySelectorAll(
+					`
+						#changeQuizButton,
+						#suggestionsHeader, #suggestionsList,
+						#saveButton,
+						#createPollButton, #pollBox,
+						#addQuizToQueueButton, #quizQueueBox form, #quizQueueBox ol button
+					`
+				).forEach(element => element.remove());
+				document.querySelectorAll(`#quizQueueBox ol li`).forEach(li => li.removeAttribute("draggable"));
 
 				// Add non host features
 				if (onQuizPage)
@@ -466,6 +475,16 @@ function processMessage(message)
 			updateLeaderboardUrls();
 			updateContextMenuHandling();
 			addSaveRoomButton();
+			if (onQuizPage)
+			{
+				interfaceBox.append(addQuizToQueueButton());
+			}
+			if (message["queue"] !== null)
+			{
+				document.querySelector("#quizQueueBox")?.remove();
+				addQuizQueueBox(message["queue"], message["queue_interval"]);
+			}
+
 			if (message["poll_data"] !== null)
 			{
 				addCreatePollBox(message["poll_data"]);
@@ -528,8 +547,51 @@ function processMessage(message)
 		case "vote_update":
 			updateVoteInfoBox(message["vote_data"]);
 			break;
+		case "queue_update":
+			updateQuizQueue(message["queue"], message["queue_interval"]);
+			break;
+		case "start_change_quiz_countdown":
+			{
+				const endTime = (new Date()).getTime() + message["countdown_length"]*1000;
+				const timeLeft = () => (Math.max(0, endTime - (new Date()).getTime())/1000).toFixed(1);
+				const countdown = document.createElement("div");
+				countdown.id = "changeQuizCountdown";
+				countdown.append(document.createElement("span"));
+				countdown.firstChild.textContent = `Changing to next quiz in ${timeLeft()}s`;
+				setInterval(
+					() =>
+					{
+						if (countdown.firstChild.textContent !== "Change quiz countdown cancelled")
+						{
+							countdown.firstChild.textContent = `Changing to next quiz in ${timeLeft()}s`;
+						}
+					}
+					, 100
+				);
+				if (host)
+				{
+					const cancelButton = document.createElement("button");
+					cancelButton.textContent = "Cancel Countdown";
+					cancelButton.addEventListener("click",
+						(event) =>
+						{
+							port.postMessage({type: "change_queue_interval", queue_interval: null});
+						}
+					);
+					countdown.append(cancelButton);
+				}
+				document.querySelector("#interfaceBox")?.insertBefore(countdown, document.querySelector("#leaderboard").nextElementSibling);
+				break;
+			}
+		case "cancel_change_quiz_countdown":
+			{
+				const countdownMessage = document.querySelector("#changeQuizCountdown span");
+				countdownMessage.textContent = "Change quiz countdown cancelled";
+				document.querySelector("#changeQuizCountdown button")?.remove();
+				setTimeout(() => countdownMessage.parentNode.remove(), 2000);
+				break;
+			}
 	}
-
 }
 
 function updateHostsInLeaderboard()
@@ -639,7 +701,7 @@ async function joinRoom(event)
 		username: username,
 		code: roomCode,
 	};
-
+	let queue = undefined;
 	try
 	{
 		port.postMessage({type: "startConnection", initialMessage: message});
@@ -656,6 +718,7 @@ async function joinRoom(event)
 						{
 							hosts = message["hosts"];
 							port.postMessage({type: "url_update", url: window.location.pathname})
+							queue = message["queue"] ?? undefined;
 
 							// Set up message handing
 							port.onMessage.addListener(processMessage);
@@ -689,7 +752,7 @@ async function joinRoom(event)
 		return;
 	}
 
-	onRoomConnect();
+	onRoomConnect(undefined, undefined, undefined, queue);
 }
 
 async function loadRoom(event, form)
@@ -774,7 +837,7 @@ async function loadRoom(event, form)
 
 	onRoomConnect();
 }
-function onRoomConnect(existingScores, existingPollData, currentVoteData)
+function onRoomConnect(existingScores, existingPollData, currentVoteData, queue, queueInterval)
 {
 	// Set up message handing if not done already.
 	if (!port.onMessage.hasListener(processMessage))
@@ -833,6 +896,8 @@ function onRoomConnect(existingScores, existingPollData, currentVoteData)
 	if (host)
 	{
 		addSaveRoomButton();
+
+		// Poll
 		if (existingPollData)
 		{
 			addCreatePollBox(existingPollData);
@@ -840,6 +905,12 @@ function onRoomConnect(existingScores, existingPollData, currentVoteData)
 		else
 		{
 			addCreatePollButton();
+		}
+
+		// Add Quiz to Queue
+		if (onQuizPage)
+		{
+			interfaceBox.append(addQuizToQueueButton());
 		}
 	}
 
@@ -852,6 +923,13 @@ function onRoomConnect(existingScores, existingPollData, currentVoteData)
 			addBallotPopout(currentVoteData.poll);
 		}
 	}
+
+	// Quiz Queue
+	if (queue)
+	{
+		addQuizQueueBox(queue, queueInterval);
+	}
+
 
 	// If on a quiz page, observe for the start of the quiz
 	if (onQuizPage)
@@ -929,10 +1007,18 @@ function addChangeQuizButton()
 	interfaceBox.insertBefore(changeQuizButton, interfaceBox.querySelector(`#roomCodeHeader`).nextElementSibling);
 }
 
-function addSuggestionQuizButton()
+function currentQuizInfo()
 {
+	const url = window.location.href;
 	const shortTitle = document.querySelector(`title`).textContent;
 	const longTitle = document.querySelector("#gameMeta>h2").textContent;
+
+	return {url: url, short_title: shortTitle, long_title: longTitle};
+}
+
+function addSuggestionQuizButton()
+{
+	const quizInfo = currentQuizInfo();
 
 	const suggestQuizButton = document.createElement("button");
 	suggestQuizButton.id = "suggestQuizButton";
@@ -943,9 +1029,9 @@ function addSuggestionQuizButton()
 			port.postMessage(
 				{
 					type: "suggest_quiz",
-					url: window.location.href,
-					short_title: shortTitle,
-					long_title: longTitle
+					url: quizInfo.url,
+					short_title: quizInfo.short_title,
+					long_title: quizInfo.long_title
 				}
 			);
 		}
@@ -989,12 +1075,7 @@ function addCreatePollBox(pollData)
 	if (onQuizPage)
 	{
 		// Get info about quiz from page
-		const currentQuiz =
-		{
-			url: window.location.href,
-			short_title: document.querySelector(`title`).textContent,
-			long_title: document.querySelector("#gameMeta>h2").textContent
-		};
+		const quizInfo = currentQuizInfo();
 
 		const addCurrentQuizToPollButton = document.createElement("button");
 		addCurrentQuizToPollButton.textContent = "Add Quiz to Poll";
@@ -1007,7 +1088,7 @@ function addCreatePollBox(pollData)
 					pollData.entries.push(currentQuiz);
 					const newEntryListItem = document.createElement("li");
 
-					newEntryListItem.textContent = currentQuiz.short_title;
+					newEntryListItem.textContent = quizInfo.short_title;
 
 					removeEntryButton = document.createElement("div");
 					removeEntryButton.textContent = "×";
@@ -1015,7 +1096,7 @@ function addCreatePollBox(pollData)
 						(event) =>
 						{
 							newEntryListItem.remove();
-							pollData.entries = pollData.entries.filter(existingEntry => existingEntry.url !== currentQuiz.url);
+							pollData.entries = pollData.entries.filter(existingEntry => existingEntry.url !== quizInfo.url);
 							port.postMessage({type:"poll_data_update", poll_data: pollData});
 						}
 					);
@@ -1062,7 +1143,7 @@ function addCreatePollBox(pollData)
 	pollDurationInput.addEventListener("change",
 		(event) =>
 		{
-			pollData.duration = Math.max(10, Math.min(pollDurationInput.value, 60));
+			pollData.duration = Math.max(10, Math.min(Number(pollDurationInput.value), 60));
 			// Send updated data
 			port.postMessage({type:"poll_data_update", poll_data: pollData});
 		}
@@ -2344,4 +2425,215 @@ function collapseToggle()
 	toggle.classList.add("toggle");
 
 	return toggle;
+}
+
+function addQuizToQueueButton()
+{
+	const button = document.createElement("button");
+	button.textContent = "Add Quiz to Queue";
+	button.addEventListener("click",
+		(event) =>
+		{
+			const quizInfo = currentQuizInfo();
+			const existingQueuedQuizes = Array.from(document.querySelectorAll("#quizQueueBox ol li"));
+
+			if (!existingQueuedQuizes.find(queuedQuiz => queuedQuiz.short_title === quizInfo.short_title))
+			{
+				port.postMessage({type: "add_to_queue", quiz: quizInfo});
+			}
+		}
+	);
+	return button;
+}
+
+function addQuizQueueBox(queue = [], queueInterval)
+{
+	const quizQueueBox = document.createElement("div");
+	quizQueueBox.classList.add("interfaceSection");
+	quizQueueBox.id = "quizQueueBox";
+
+	quizQueueBox.append(closeButton(quizQueueBox));
+
+	const header = document.createElement("h2");
+	header.textContent = "Quiz Queue";
+	quizQueueBox.append(header);
+
+	quizQueueBox.append(collapseToggle());
+
+	const queueList = document.createElement("ol");
+	quizQueueBox.append(queueList);
+
+	if (host)
+	{
+		const queueAutoChangeForm = document.createElement("form");
+
+		const autoChangeToggleInput = document.createElement("input");
+		autoChangeToggleInput.type = "checkbox";
+		autoChangeToggleInput.checked = !!queueInterval;
+		const intervalLabel = document.createElement("label");
+		intervalLabel.textContent = "auto change quiz after ";
+		const intervalInput = document.createElement("input");
+		intervalInput.type = "number";
+		intervalInput.min = 10;
+		intervalInput.max = 60*5;
+		intervalInput.value = queueInterval ?? "60";
+		intervalInput.disabled = !autoChangeToggleInput.checked;
+		[autoChangeToggleInput, intervalInput].forEach(
+			(input) =>
+			{
+				input.addEventListener("change",
+					(event) =>
+					{
+						intervalInput.disabled = !autoChangeToggleInput.checked;
+						intervalInput.value = Math.max(10, Math.min(Number(intervalInput.value), 60*5));
+						const newQueueInterval = autoChangeToggleInput.checked ? Number(intervalInput.value) : null;
+						port.postMessage({type: "change_queue_interval", queue_interval: newQueueInterval});
+					}
+				);
+			}
+		);
+		queueAutoChangeForm.append(
+			autoChangeToggleInput, intervalLabel, intervalInput,  document.createTextNode("s")
+		);
+		quizQueueBox.append(queueAutoChangeForm);
+	}
+
+	sectionContainer.append(quizQueueBox);
+
+	updateQuizQueue(queue, queueInterval);
+}
+
+function updateQuizQueue(queue, queueInterval)
+{
+	let quizQueueBox = document.querySelector("#quizQueueBox");
+	if (queue.length === 0)
+	{
+		return quizQueueBox?.remove();
+	}
+	if (quizQueueBox === null)
+	{
+		return addQuizQueueBox(queue, queueInterval);
+	}
+
+
+	const queueList = quizQueueBox.querySelector("ol");
+	Array.from(queueList.querySelectorAll("li"))
+		.filter(li => !queue.some(queuedQuiz => queuedQuiz.short_title === li.textContent))
+		.forEach(li => li.remove());
+
+	queue.forEach(
+		(queuedQuiz) =>
+		{
+			let li = Array.from(queueList.querySelectorAll("li")).find(li => li.textContent === queuedQuiz.short_title);
+			if (li === undefined)
+			{
+				li = document.createElement("li");
+				li.textContent = queuedQuiz.short_title;
+				if (host)
+				{
+					// Add go to button
+					const goToButton = document.createElement("button");
+					goToButton.classList.add("goTo");
+					goToButton.addEventListener("click", (event) => {window.location = queuedQuiz.url});
+					li.append(goToButton);
+					// Add Remove Button
+					li.append(
+						closeButton(li,
+							(event) =>
+							{
+								port.postMessage({type: "remove_from_queue", quiz: queuedQuiz});
+							}
+						)
+					);
+					// Make list draggable to reorder queue.
+					li.setAttribute("draggable", "true");
+					li.addEventListener("dragstart",
+						(event) =>
+						{
+							const quizInfoString = JSON.stringify(queuedQuiz);
+							event.dataTransfer.setData("text/quizinfo", quizInfoString);
+							const dragImage = document.createElement("div");
+							dragImage.id = "tempDragImage";
+							dragImage.style =
+							`
+								position: absolute;
+								top: -2000vh;
+								left: -2000vw;
+								width: calc(${event.target.clientWidth}px - ${window.getComputedStyle(event.target).paddingRight});
+							`;
+							dragImage.textContent = queuedQuiz.short_title;
+							document.body.append(dragImage);
+
+							event.dataTransfer.setDragImage(dragImage, 30, dragImage.clientHeight/2);
+							event.dataTransfer.effectAllowed = "move";
+							event.target.classList.add("moving");
+						}
+					);
+					li.addEventListener("dragend",
+						(event) =>
+						{
+							event.target.classList.remove("moving");
+							event.target.style = "";
+							document.querySelector("#tempDragImage")?.remove();
+						}
+					);
+					li.addEventListener("dragenter",
+						(event) =>
+						{
+							if (event.dataTransfer.types.includes("text/quizinfo"))
+							{
+								event.preventDefault();
+								event.dataTransfer.dropEffect = "move";
+								const beingDragged = queueList.querySelector(".moving");
+
+								const indexOffset =
+									Array.from(queueList.childNodes).indexOf(event.target)
+									- Array.from(queueList.childNodes).indexOf(beingDragged);
+								if (indexOffset > 0)
+								{
+									// Element being dragged is above the target.
+									// So we want to move the dragged element to just below/after it.
+									queueList.insertBefore(beingDragged, event.target.nextElementSibling);
+								}
+								else
+								{
+									// Element being dragged is below the target
+									// So we want to move the dragged element to just above/before it.
+									queueList.insertBefore(beingDragged, event.target);
+								}
+							}
+						}
+					);
+					li.addEventListener("dragover",
+						(event) =>
+						{
+							if (event.dataTransfer.types.includes("text/quizinfo"))
+							{
+								event.preventDefault();
+								event.dataTransfer.dropEffect = "move";
+							}
+						}
+					);
+					li.addEventListener("drop",
+						(event) =>
+						{
+							const newIndex = Array.from(queueList.children).indexOf(document.querySelector(".moving"));
+							port.postMessage({type: "reorder_queue", quiz: queuedQuiz, index: newIndex});
+						}
+					);
+				}
+			}
+			queueList.append(li);
+		}
+	);
+
+	if (host)
+	{
+		// Update Queue Interval
+		const autoChangeToggleInput = quizQueueBox.querySelector(`form input[type="checkbox"]`);
+		const intervalInput = quizQueueBox.querySelector(`form input[type="number"]`);
+		autoChangeToggleInput.checked = !!queueInterval;
+		intervalInput.disabled = !queueInterval;
+		intervalInput.value = queueInterval ?? intervalInput.value;
+	}
 }

@@ -41,6 +41,8 @@ let pollData = {};
 let voteData = {};
 let voted = false;
 let saveName = null;
+let queue = [];
+let queueInterval;
 
 chrome.runtime.onConnect.addListener(
 	(port) =>
@@ -70,7 +72,9 @@ chrome.runtime.onConnect.addListener(
 									poll_data: pollData,
 									vote_data: voteData,
 									saveName: saveName,
-									voted: voted
+									voted: voted,
+									queue: queue,
+									queue_interval: queueInterval
 								}
 							);
 							ws.send(JSON.stringify({type: "url_update", url: message["url"]}))
@@ -212,6 +216,8 @@ function forwardMessage(event)
 		if (message["success"])
 		{
 			hosts = message["hosts"];
+			queue = message["queue"];
+			queueInterval = message["queue_interval"];
 		}
 		else
 		{
@@ -241,7 +247,9 @@ function forwardMessage(event)
 	{
 		host = true;
 		urls = message["urls"];
-		poll_data = message["poll_data"] ?? {}
+		poll_data = message["poll_data"] ?? {};
+		queue = message["queue"];
+		queueInterval = message["queue_interval"];
 	}
 	else if (
 		messageType === "users_update"
@@ -319,6 +327,11 @@ function forwardMessage(event)
 	{
 		voteData = message["vote_data"];
 	}
+	else if (messageType === "queue_update")
+	{
+		queue = message["queue"];
+		queueInterval = message["queue_interval"];
+	}
 
 	if (messagePort !== null)
 	{
@@ -340,4 +353,6 @@ function reset()
 	voteData = {};
 	saveName = null;
 	voted = false;
+	queue = [];
+	queueInterval = null;
 }
