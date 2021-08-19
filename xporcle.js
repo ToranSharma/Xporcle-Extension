@@ -550,8 +550,48 @@ function processMessage(message)
 		case "queue_update":
 			updateQuizQueue(message["queue"], message["queue_interval"]);
 			break;
+		case "start_change_quiz_countdown":
+			{
+				const endTime = (new Date()).getTime() + message["countdown_length"]*1000;
+				const timeLeft = () => (Math.max(0, endTime - (new Date()).getTime())/1000).toFixed(1);
+				const countdown = document.createElement("div");
+				countdown.id = "changeQuizCountdown";
+				countdown.append(document.createElement("span"));
+				countdown.firstChild.textContent = `Changing to next quiz in ${timeLeft()}s`;
+				setInterval(
+					() =>
+					{
+						if (countdown.firstChild.textContent !== "Change quiz countdown cancelled")
+						{
+							countdown.firstChild.textContent = `Changing to next quiz in ${timeLeft()}s`;
+						}
+					}
+					, 100
+				);
+				if (host)
+				{
+					const cancelButton = document.createElement("button");
+					cancelButton.textContent = "Cancel Countdown";
+					cancelButton.addEventListener("click",
+						(event) =>
+						{
+							port.postMessage({type: "change_queue_interval", queue_interval: null});
+						}
+					);
+					countdown.append(cancelButton);
+				}
+				document.querySelector("#interfaceBox")?.insertBefore(countdown, document.querySelector("#leaderboard").nextElementSibling);
+				break;
+			}
+		case "cancel_change_quiz_countdown":
+			{
+				const countdownMessage = document.querySelector("#changeQuizCountdown span");
+				countdownMessage.textContent = "Change quiz countdown cancelled";
+				document.querySelector("#changeQuizCountdown button")?.remove();
+				setTimeout(() => countdownMessage.parentNode.remove(), 2000);
+				break;
+			}
 	}
-
 }
 
 function updateHostsInLeaderboard()

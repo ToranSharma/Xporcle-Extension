@@ -52,6 +52,13 @@
 		margin: 0 auto;
 
 	}
+#interfaceBox #changeQuizCountdown
+{
+	display: flex;
+	flex-direction: row;
+	justify-content: space-evenly;
+	flex-wrap: wrap;
+}
 
 #leaderboard,
 #liveScores
