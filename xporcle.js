@@ -858,6 +858,8 @@ function onRoomConnect(existingScores, existingPollData, currentVoteData, queue,
 	roomCodeHeader.lastChild.textContent = roomCode;
 	interfaceBox.insertBefore(roomCodeHeader, interfaceBox.firstElementChild);
 
+	interfaceBox.insertBefore(collapseToggle(),roomCodeHeader.nextElementSibling);
+
 	// If the user is a host and is on a quiz,
 	// add a button to send the quiz to the rest of the room
 	if (host && onQuizPage)
@@ -1004,7 +1006,7 @@ function addChangeQuizButton()
 	);
 
 	// The button goes just after the room code header
-	interfaceBox.insertBefore(changeQuizButton, interfaceBox.querySelector(`#roomCodeHeader`).nextElementSibling);
+	interfaceBox.insertBefore(changeQuizButton, interfaceBox.querySelector(`.toggle`).nextElementSibling);
 }
 
 function currentQuizInfo()
