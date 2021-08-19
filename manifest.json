@@ -1,7 +1,7 @@
 {
 	"name"				:	"Xporcle",
 	"description"		:	"Adds real-time multiplayer abilities to Sporcle.com",
-	"version"			:	"2.2.0",
+	"version"			:	"2.3.0",
 	"manifest_version"	:	2,
 	
 	"icons"				: 	{

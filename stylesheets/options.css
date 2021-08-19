@@ -78,17 +78,21 @@ ul
 {
 	color: grey;
 }
-#optionTree .labelFirst
+#optionTree li.labelFirst
+{
+	grid-template-columns: max-content 4em;
+}
+#optionTree ul li.labelFirst
 {
 	grid-template-columns: 3em max-content 3em;
 }
-	#optionTree .labelFirst > label
-	{
-		padding-left: 0;
-		padding-right: 0.5em;
-		z-index: 3;
-		background-color: white;
-	}
+#optionTree .labelFirst > label
+{
+	padding-left: 0;
+	padding-right: 0.5em;
+	z-index: 3;
+	background-color: white;
+}
 
 #optionTree .labelFirst.containsTextInput
 {
@@ -117,6 +121,17 @@ ul
 	align-self: center;
 	height: 1.5em;
 	line-height: 1.5em;
+}
+
+#optionTree .containsTime::after
+{
+	content:"s";
+	height: 1.5em;
+	line-height: 1.5em;
+}
+#optionTree > li.labelFirst.containsTime
+{
+	grid-template-columns: max-content 4em auto;
 }
 
 button
