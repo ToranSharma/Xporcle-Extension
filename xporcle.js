@@ -442,7 +442,16 @@ function processMessage(message)
 				updateLeaderboardUrls();
 
 				suggestions = [];
-				document.querySelectorAll(`#changeQuizButton, #suggestionsHeader, #suggestionsList, #saveButton, #createPollButton`).forEach(element => element.remove());
+				document.querySelectorAll(
+					`
+						#changeQuizButton,
+						#suggestionsHeader, #suggestionsList,
+						#saveButton,
+						#createPollButton, #pollBox,
+						#addQuizToQueueButton, #quizQueueBox form, #quizQueueBox ol button
+					`
+				).forEach(element => element.remove());
+				document.querySelectorAll(`#quizQueueBox ol li`).forEach(li => li.removeAttribute("draggable"));
 
 				// Add non host features
 				if (onQuizPage)
