@@ -205,7 +205,9 @@ function retrieveOptions()
 				{
 					useDefaultUsername: false,
 					defaultUsername: "",
-					blurRoomCode: false
+					blurRoomCode: false,
+					defaultPollDuration: 30,
+					defaultQuizQueueInterval: 60
 				};
 
 			if (Object.entries(data).length === 0)
@@ -262,11 +264,11 @@ function applyOptions()
 	// Blur Room Code
 	if (options.blurRoomCode)
 	{
-		document.body.classList.add(".blurRoomCode");
+		document.body.classList.add("blurRoomCode");
 	}
 	else
 	{
-		document.body.classList.remove(".blurRoomCode");
+		document.body.classList.remove("blurRoomCode");
 	}
 }
 
@@ -1050,7 +1052,7 @@ function addCreatePollButton()
 	createPollButton.addEventListener("click",
 		(event) =>
 		{
-			const pollData = {duration: 30, entries: []};
+			const pollData = {duration: options.defaultPollDuration, entries: []};
 			addCreatePollBox(pollData);
 			port.postMessage({type: "poll_create", poll_data: pollData});
 			createPollButton.remove();
@@ -2478,7 +2480,7 @@ function addQuizQueueBox(queue = [], queueInterval)
 		intervalInput.type = "number";
 		intervalInput.min = 10;
 		intervalInput.max = 60*5;
-		intervalInput.value = queueInterval ?? "60";
+		intervalInput.value = queueInterval ?? options.defaultQuizQueueInterval;
 		intervalInput.disabled = !autoChangeToggleInput.checked;
 		[autoChangeToggleInput, intervalInput].forEach(
 			(input) =>

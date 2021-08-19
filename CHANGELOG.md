@@ -3,6 +3,11 @@ Changelog
 
 [Unreleased]
 ------------
+-
+
+[v2.3.0] - 2021-08-16
+---------------------
+[GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v2.3.0)
 ### Added
 - Quiz Queue
   - Button for hosts to add the quiz they are on to the queue.
@@ -11,9 +16,11 @@ Changelog
   - Go to quiz button for hosts to visit the page of quizzes in the queue.
   - Controls for hosts to toggle and customise interval for auto changing to
     next quiz.
+	- Option to set default interval for auto chaning.
     - Countdown under leaderboard displaying time left until change to next
     quiz.
     - Button to cancel the countdown for hosts.
+- Option to set default duration for next quiz polls.
 
 [v2.2.0] - 2021-08-16
 ---------------------
@@ -24,7 +31,6 @@ Changelog
 
 ### Changed
 - Xporcle interface now scrollable if longer than available space.
-
 
 [v2.1.0] - 2021-08-14
 ---------------------
@@ -159,6 +165,7 @@ Changelog
 - Options page popup placeholder.
 
 [Unreleased]: https://github.com/ToranSharma/Xporcle-Extension/compare/master...develop
+[v2.3.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v2.2.0...v2.3.0
 [v2.2.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v2.1.0...v2.2.0
 [v2.1.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v2.0.0...v2.1.0
 [v2.0.0]: https://github.com/ToranSharma/Xporcle-Extension/compare/v1.2.1...v2.0.0

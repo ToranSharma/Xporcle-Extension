@@ -6,7 +6,7 @@
 	<link href="stylesheets/options.css" rel="stylesheet" />
 </head>
 <body>
-	<h1>Xporcle <span id="version">v2.2.0</span></h1>
+	<h1>Xporcle <span id="version">v2.3.0</span></h1>
 	<h2>Enable or Disable Features Here</h2>
 	<ul id="optionTree">
 		<li>
@@ -23,6 +23,14 @@
 		<li>
 			<input class="option" id="blurRoomCode" type="checkbox" />
 			<label for="blurRoomCode">Blur Room Code</label>
+		</li>
+		<li class="labelFirst containsTime">
+			<label for="defaultPollDuration containsTime">Default Poll Duration</label>
+			<input class="option" id="defaultPollDuration" type="number" value="30" min="10" max="60" />
+		</li>
+		<li class="labelFirst containsTime">
+			<label for="defaultQuizQueueInterval">Default Quiz Queue Interval</label>
+			<input class="option" id="defaultQuizQueueInterval" type="number" value="60" min="10" max="300" />
 		</li>
 	</ul>
 	<button id="enableAll">Enable all</button>
