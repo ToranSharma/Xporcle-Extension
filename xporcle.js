@@ -262,11 +262,11 @@ function applyOptions()
 	// Blur Room Code
 	if (options.blurRoomCode)
 	{
-		document.body.classList.add(".blurRoomCode");
+		document.body.classList.add("blurRoomCode");
 	}
 	else
 	{
-		document.body.classList.remove(".blurRoomCode");
+		document.body.classList.remove("blurRoomCode");
 	}
 }
 
