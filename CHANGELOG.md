@@ -16,9 +16,11 @@ Changelog
   - Go to quiz button for hosts to visit the page of quizzes in the queue.
   - Controls for hosts to toggle and customise interval for auto changing to
     next quiz.
+	- Option to set default interval for auto chaning.
     - Countdown under leaderboard displaying time left until change to next
     quiz.
     - Button to cancel the countdown for hosts.
+- Option to set default duration for next quiz polls.
 
 [v2.2.0] - 2021-08-16
 ---------------------
