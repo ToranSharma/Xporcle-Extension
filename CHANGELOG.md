@@ -8,6 +8,10 @@ Changelog
 [v2.3.0] - 2021-08-16
 ---------------------
 [GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v2.3.0)
+
+[v2.3.0] - 2021-08-16
+---------------------
+[GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v2.3.0)
 ### Added
 - Quiz Queue
   - Button for hosts to add the quiz they are on to the queue.
