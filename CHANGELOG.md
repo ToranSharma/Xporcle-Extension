@@ -5,6 +5,12 @@ Changelog
 ------------
 -
 
+[v2.3.1] - 2021-08-16
+---------------------
+[GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v2.3.0)
+### Fixed
+- Add quiz to poll button.
+
 [v2.3.0] - 2021-08-16
 ---------------------
 [GitHub Release Page](https://github.com/ToranSharma/Xporcle-Extension/releases/tag/v2.3.0)
