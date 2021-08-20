@@ -1087,9 +1087,9 @@ function addCreatePollBox(pollData)
 		addCurrentQuizToPollButton.addEventListener("click",
 			(event) =>
 			{
-				if (!pollData.entries.some(existingQuiz => existingQuiz.url === currentQuiz.url))
+				if (!pollData.entries.some(existingQuiz => existingQuiz.url === quizInfo.url))
 				{
-					pollData.entries.push(currentQuiz);
+					pollData.entries.push(quizInfo);
 					const newEntryListItem = document.createElement("li");
 
 					newEntryListItem.textContent = quizInfo.short_title;
